@@ -13,6 +13,7 @@ import {
   FileText,
   HelpCircle,
   ClipboardList,
+  Download,
   Trash2,
   Edit2,
   Eye,
@@ -66,11 +67,12 @@ type Course = {
   }
 }
 
-const lessonTypeIcons = {
+const lessonTypeIcons: Record<string, typeof PlayCircle> = {
   VIDEO: PlayCircle,
   TEXT: FileText,
   QUIZ: HelpCircle,
   ASSIGNMENT: ClipboardList,
+  DOWNLOAD: Download,
 }
 
 export default function CourseDetailPage() {

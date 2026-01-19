@@ -1,13 +1,23 @@
 import Mux from "@mux/mux-node"
 import crypto from "crypto"
 
-// Initialize Mux client
-const mux = new Mux({
-  tokenId: process.env.MUX_TOKEN_ID!,
-  tokenSecret: process.env.MUX_TOKEN_SECRET!,
-})
+// Lazy initialization of Mux client
+let muxClient: Mux | null = null
 
-export { mux }
+function getMux(): Mux {
+  if (!muxClient) {
+    if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
+      throw new Error("MUX_TOKEN_ID and MUX_TOKEN_SECRET environment variables are required")
+    }
+    muxClient = new Mux({
+      tokenId: process.env.MUX_TOKEN_ID,
+      tokenSecret: process.env.MUX_TOKEN_SECRET,
+    })
+  }
+  return muxClient
+}
+
+export { getMux as mux }
 
 // ==================== VIDEO ON DEMAND (VOD) ====================
 
@@ -16,7 +26,7 @@ export async function createDirectUpload(options?: {
   corsOrigin?: string
   isPrivate?: boolean
 }) {
-  const upload = await mux.video.uploads.create({
+  const upload = await getMux().video.uploads.create({
     cors_origin: options?.corsOrigin || process.env.NEXT_PUBLIC_APP_URL || "*",
     new_asset_settings: {
       playback_policy: [options?.isPrivate ? "signed" : "public"],
@@ -31,7 +41,7 @@ export async function createDirectUpload(options?: {
 
 // Get asset details
 export async function getAsset(assetId: string) {
-  const asset = await mux.video.assets.retrieve(assetId)
+  const asset = await getMux().video.assets.retrieve(assetId)
   return asset
 }
 
@@ -58,7 +68,7 @@ export async function createPlaybackToken(
     throw new Error("Mux signing keys not configured for private playback")
   }
 
-  const token = await mux.jwt.signPlaybackId(playbackId, {
+  const token = await getMux().jwt.signPlaybackId(playbackId, {
     keyId: signingKeyId,
     keySecret: signingKeySecret,
     expiration: expiresIn,
@@ -69,7 +79,7 @@ export async function createPlaybackToken(
 
 // Delete an asset
 export async function deleteAsset(assetId: string) {
-  await mux.video.assets.delete(assetId)
+  await getMux().video.assets.delete(assetId)
 }
 
 // ==================== LIVESTREAMING ====================
@@ -80,7 +90,7 @@ export async function createLivestream(options?: {
   reconnectWindow?: number // seconds, default 60
   latencyMode?: "low" | "reduced" | "standard"
 }) {
-  const livestream = await mux.video.liveStreams.create({
+  const livestream = await getMux().video.liveStreams.create({
     playback_policy: [options?.playbackPolicy || "public"],
     new_asset_settings: {
       playback_policy: [options?.playbackPolicy || "public"],
@@ -100,7 +110,7 @@ export async function createLivestream(options?: {
 
 // Get livestream details
 export async function getLivestream(livestreamId: string) {
-  const livestream = await mux.video.liveStreams.retrieve(livestreamId)
+  const livestream = await getMux().video.liveStreams.retrieve(livestreamId)
   return {
     id: livestream.id,
     streamKey: livestream.stream_key,
@@ -113,27 +123,27 @@ export async function getLivestream(livestreamId: string) {
 
 // Reset stream key (if compromised)
 export async function resetStreamKey(livestreamId: string) {
-  const livestream = await mux.video.liveStreams.resetStreamKey(livestreamId)
+  const livestream = await getMux().video.liveStreams.resetStreamKey(livestreamId)
   return livestream.stream_key
 }
 
 // Signal livestream is complete
 export async function completeLivestream(livestreamId: string) {
-  await mux.video.liveStreams.complete(livestreamId)
+  await getMux().video.liveStreams.complete(livestreamId)
 }
 
 // Delete a livestream
 export async function deleteLivestream(livestreamId: string) {
-  await mux.video.liveStreams.delete(livestreamId)
+  await getMux().video.liveStreams.delete(livestreamId)
 }
 
 // Enable/disable a livestream
 export async function enableLivestream(livestreamId: string) {
-  await mux.video.liveStreams.enable(livestreamId)
+  await getMux().video.liveStreams.enable(livestreamId)
 }
 
 export async function disableLivestream(livestreamId: string) {
-  await mux.video.liveStreams.disable(livestreamId)
+  await getMux().video.liveStreams.disable(livestreamId)
 }
 
 // Get live playback URL

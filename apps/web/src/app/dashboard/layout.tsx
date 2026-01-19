@@ -18,6 +18,9 @@ import {
   MessageSquare,
 } from "lucide-react"
 
+// Prevent static generation - dashboard requires authentication
+export const dynamic = "force-dynamic"
+
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Community", href: "/dashboard/community", icon: Users },

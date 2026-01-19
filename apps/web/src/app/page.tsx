@@ -5,6 +5,9 @@ import { SignInButton } from "@/components/auth/sign-in-button"
 import { Users, BookOpen, Video, Church, Shield, Zap } from "lucide-react"
 import Image from "next/image"
 
+// Prevent static generation - page checks authentication
+export const dynamic = "force-dynamic"
+
 export default async function Home() {
   const { isAuthenticated } = await getLogtoContext(logtoConfig)
 
