@@ -1,0 +1,586 @@
+// Sola+ 2.0 Database Schema
+// PostgreSQL via Supabase
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==================== AUTH & USERS ====================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatar        String?
+  logtoId       String?   @unique // Logto user ID
+  emailVerified DateTime?
+
+  // Relations
+  ownedOrganizations Organization[] @relation("OrganizationOwner")
+  memberships        Membership[]
+  posts              Post[]
+  comments           Comment[]
+  reactions          Reaction[]
+  conversationParticipants ConversationParticipant[]
+  messages           Message[]
+  enrollments        Enrollment[]
+  lessonCompletions  LessonCompletion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== MULTI-TENANCY ====================
+
+model Organization {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique // Used for subdomain: {slug}.my.solaplus.ai
+  description String? @db.Text
+  logo        String?
+  banner      String?
+
+  // Owner
+  ownerId String
+  owner   User   @relation("OrganizationOwner", fields: [ownerId], references: [id])
+
+  // Stripe Connect
+  stripeAccountId     String?  @unique // Stripe Express Account ID
+  stripeAccountStatus String?  // "pending", "active", "restricted"
+  stripeOnboardingComplete Boolean @default(false)
+
+  // Settings
+  settings Json @default("{}")
+
+  // Custom domain (future)
+  customDomain String? @unique
+
+  // Relations
+  memberships   Membership[]
+  tiers         MembershipTier[]
+  communities   Community[]
+  courses       Course[]
+  livestreams   Livestream[]
+  media         Media[]
+  webhooks      Webhook[]
+  apiKeys       ApiKey[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model MembershipTier {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?      @db.Text
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Pricing
+  price         Decimal  @db.Decimal(10, 2)
+  currency      String   @default("USD")
+  interval      String   @default("month") // "month", "year", "one_time"
+
+  // Stripe
+  stripePriceId   String?
+  stripeProductId String?
+
+  // Access control
+  features Json @default("[]") // Array of feature strings
+
+  // Relations
+  memberships Membership[]
+
+  isActive  Boolean  @default(true)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tierId         String?
+  tier           MembershipTier?  @relation(fields: [tierId], references: [id])
+
+  role   MemberRole @default(MEMBER)
+  status MemberStatus @default(ACTIVE)
+
+  // Stripe subscription
+  stripeSubscriptionId String?
+  stripeCustomerId     String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean @default(false)
+
+  joinedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum MemberStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  PAST_DUE
+}
+
+// ==================== COMMUNITY ====================
+
+model Community {
+  id             String       @id @default(cuid())
+  name           String
+  slug           String
+  description    String?      @db.Text
+  image          String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  settings Json @default("{}")
+
+  channels Channel[]
+
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+model Channel {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  type        ChannelType @default(DISCUSSION)
+  communityId String
+  community   Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  // Access control - which tier IDs can access
+  accessTierIds String[] @default([])
+  isPublic      Boolean  @default(false)
+
+  posts Post[]
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([communityId, slug])
+  @@index([communityId])
+}
+
+enum ChannelType {
+  DISCUSSION    // Text posts with comments
+  ANNOUNCEMENTS // Creator-only posts
+  EVENTS        // Event posts with RSVP
+  RESOURCES     // File/link sharing
+  LIVESTREAM    // Live video channel
+}
+
+model Post {
+  id        String  @id @default(cuid())
+  content   String  @db.Text
+  authorId  String
+  author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  // Rich content
+  attachments Json[] @default([])
+  embedUrl    String?
+
+  // Status
+  isPinned    Boolean @default(false)
+  isPublished Boolean @default(true)
+
+  comments  Comment[]
+  reactions Reaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([channelId])
+  @@index([authorId])
+}
+
+model Comment {
+  id       String  @id @default(cuid())
+  content  String  @db.Text
+  authorId String
+  author   User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  postId   String
+  post     Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Nested comments
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  reactions Reaction[]
+
+  isEdited  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([parentId])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId, emoji])
+  @@unique([userId, commentId, emoji])
+}
+
+// ==================== DIRECT MESSAGES ====================
+
+model Conversation {
+  id   String           @id @default(cuid())
+  type ConversationType @default(DIRECT)
+  name String? // For group chats
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  lastReadAt DateTime?
+  isMuted    Boolean   @default(false)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, conversationId])
+  @@index([conversationId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String       @db.Text
+  authorId       String
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  attachments Json[]  @default([])
+  isEdited    Boolean @default(false)
+  isDeleted   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([authorId])
+}
+
+// ==================== COURSES ====================
+
+model Course {
+  id             String       @id @default(cuid())
+  title          String
+  slug           String
+  description    String?      @db.Text
+  thumbnail      String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Pricing
+  price      Decimal?        @db.Decimal(10, 2)
+  currency   String          @default("USD")
+  accessType CourseAccessType @default(PAID)
+
+  // Stripe
+  stripePriceId   String?
+  stripeProductId String?
+
+  // Access control - which tier IDs grant access
+  accessTierIds String[] @default([])
+
+  modules     CourseModule[]
+  enrollments Enrollment[]
+
+  isPublished Boolean  @default(false)
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+enum CourseAccessType {
+  FREE
+  PAID
+  MEMBERSHIP // Access via membership tier
+}
+
+model CourseModule {
+  id       String @id @default(cuid())
+  title    String
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  lessons Lesson[]
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id          String       @id @default(cuid())
+  title       String
+  description String?      @db.Text
+  moduleId    String
+  module      CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  type LessonType @default(VIDEO)
+
+  // Video content (Mux)
+  muxAssetId     String?
+  muxPlaybackId  String?
+  videoDuration  Int? // seconds
+
+  // Text content
+  content String? @db.Text
+
+  // Quiz/assignment
+  questions Json?
+
+  // Drip content
+  dripDate   DateTime?
+  dripDays   Int? // Days after enrollment
+
+  // Downloads
+  attachments Json[] @default([])
+
+  completions LessonCompletion[]
+
+  isFreePreview Boolean  @default(false)
+  position      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([moduleId])
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  QUIZ
+  ASSIGNMENT
+  DOWNLOAD
+}
+
+model Enrollment {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  progress Float @default(0) // 0-100
+
+  // Payment
+  stripePaymentIntentId String?
+  paidAmount            Decimal? @db.Decimal(10, 2)
+
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([userId])
+}
+
+model LessonCompletion {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  completedAt DateTime @default(now())
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+}
+
+// ==================== LIVESTREAMING ====================
+
+model Livestream {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?      @db.Text
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // LiveKit
+  livekitRoomName String?  @unique
+  livekitRoomId   String?
+
+  // Recording (Mux)
+  muxAssetId    String?
+  muxPlaybackId String?
+
+  status LivestreamStatus @default(SCHEDULED)
+
+  // Schedule
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  endedAt     DateTime?
+
+  // Access control
+  accessTierIds String[] @default([])
+  isPublic      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+enum LivestreamStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+// ==================== MEDIA ====================
+
+model Media {
+  id             String       @id @default(cuid())
+  name           String
+  type           MediaType
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Storage
+  url       String
+  key       String  // R2 object key
+  size      Int     // bytes
+  mimeType  String
+
+  // Video specific (Mux)
+  muxAssetId    String?
+  muxPlaybackId String?
+  duration      Int? // seconds
+
+  // Image specific
+  width  Int?
+  height Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([type])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+// ==================== WEBHOOKS & API ====================
+
+model Webhook {
+  id             String       @id @default(cuid())
+  url            String
+  events         String[]     // Array of event types
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  secret    String
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model ApiKey {
+  id             String       @id @default(cuid())
+  name           String
+  keyHash        String       @unique // Hashed API key
+  keyPrefix      String       // First 8 chars for identification
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  scopes     String[] @default([])
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+}
+
+// ==================== STRIPE EVENTS ====================
+
+model StripeEvent {
+  id              String   @id @default(cuid())
+  stripeEventId   String   @unique
+  type            String
+  data            Json
+  processed       Boolean  @default(false)
+  processingError String?
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([processed])
+}
