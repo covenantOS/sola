@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@logto/next": "^3.0.0",
+    "@mux/mux-node": "^9.0.0",
     "@mux/mux-player-react": "^3.0.0",
     "@prisma/client": "^5.10.0",
+    "stripe": "^14.0.0",
     "@radix-ui/react-avatar": "^1.0.4",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-dropdown-menu": "^2.0.6",

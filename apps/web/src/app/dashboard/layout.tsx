@@ -4,6 +4,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { logtoConfig } from "@/lib/logto"
 import { UserButton } from "@/components/auth/user-button"
+import { OrganizationSetup } from "@/components/onboarding/organization-setup"
+import { syncUserFromLogto, getUserWithOrganization } from "@/lib/user-sync"
 import {
   Home,
   Users,
@@ -35,6 +37,22 @@ export default async function DashboardLayout({
 
   if (!isAuthenticated) {
     redirect("/")
+  }
+
+  // Sync user to database on every dashboard load
+  const dbUser = await syncUserFromLogto({
+    sub: claims?.sub || "",
+    email: claims?.email as string | undefined,
+    name: claims?.name as string | undefined,
+    picture: claims?.picture as string | undefined,
+  })
+
+  // Check if user has an organization
+  const { organization } = await getUserWithOrganization(claims?.sub || "")
+
+  // If no organization, show onboarding
+  if (!organization) {
+    return <OrganizationSetup userName={dbUser.name || undefined} />
   }
 
   const user = {

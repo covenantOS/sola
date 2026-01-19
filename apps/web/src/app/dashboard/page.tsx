@@ -1,5 +1,7 @@
 import { getLogtoContext } from "@logto/next/server-actions"
 import { logtoConfig } from "@/lib/logto"
+import { getUserWithOrganization } from "@/lib/user-sync"
+import { db } from "@/lib/db"
 import {
   Users,
   BookOpen,
@@ -8,12 +10,41 @@ import {
   TrendingUp,
   ArrowUpRight,
   Zap,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react"
 import Link from "next/link"
+
+async function getDashboardStats(organizationId: string) {
+  const [memberships, courses, livestreams] = await Promise.all([
+    db.membership.count({
+      where: { organizationId },
+    }),
+    db.course.count({
+      where: { organizationId, isPublished: true },
+    }),
+    db.livestream.count({
+      where: { organizationId },
+    }),
+  ])
+
+  return {
+    totalMembers: memberships,
+    activeCourses: courses,
+    totalLivestreams: livestreams,
+  }
+}
 
 export default async function DashboardPage() {
   const { claims } = await getLogtoContext(logtoConfig)
   const userName = (claims?.name as string) || "Creator"
+  const { organization } = await getUserWithOrganization(claims?.sub || "")
+
+  const stats = organization
+    ? await getDashboardStats(organization.id)
+    : { totalMembers: 0, activeCourses: 0, totalLivestreams: 0 }
+
+  const isStripeConnected = organization?.stripeOnboardingComplete
 
   return (
     <div className="space-y-8">
@@ -27,6 +58,28 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      {/* Stripe Connection Alert */}
+      {!isStripeConnected && (
+        <div className="bg-sola-gold/10 border border-sola-gold/30 p-4 flex items-center gap-4">
+          <AlertCircle className="h-5 w-5 text-sola-gold flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-white font-display uppercase tracking-wide text-sm">
+              Connect Stripe to start accepting payments
+            </p>
+            <p className="text-white/60 text-sm">
+              You need to connect your Stripe account before you can accept membership payments or sell courses.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/settings/payments"
+            className="inline-flex items-center gap-2 bg-sola-gold text-sola-black font-display font-semibold uppercase tracking-widest px-4 py-2 text-xs transition-all duration-300 hover:shadow-[0_0_20px_rgba(212,168,75,0.4)] whitespace-nowrap"
+          >
+            Connect Stripe
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </div>
+      )}
+
       {/* Stats grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white/5 border border-white/10 p-6">
@@ -37,23 +90,25 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="mt-4">
-            <span className="font-display text-3xl text-white">0</span>
-            <span className="ml-2 text-xs text-sola-gold flex items-center inline-flex">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              +0%
-            </span>
+            <span className="font-display text-3xl text-white">{stats.totalMembers}</span>
+            {stats.totalMembers > 0 && (
+              <span className="ml-2 text-xs text-sola-gold flex items-center inline-flex">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                Active
+              </span>
+            )}
           </div>
         </div>
 
         <div className="bg-white/5 border border-white/10 p-6">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/60">Active Courses</span>
+            <span className="text-sm text-white/60">Published Courses</span>
             <div className="w-10 h-10 bg-sola-gold/10 flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-sola-gold" />
             </div>
           </div>
           <div className="mt-4">
-            <span className="font-display text-3xl text-white">0</span>
+            <span className="font-display text-3xl text-white">{stats.activeCourses}</span>
           </div>
         </div>
 
@@ -65,19 +120,29 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="mt-4">
-            <span className="font-display text-3xl text-white">0</span>
+            <span className="font-display text-3xl text-white">{stats.totalLivestreams}</span>
           </div>
         </div>
 
         <div className="bg-white/5 border border-white/10 p-6">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/60">Revenue (MTD)</span>
+            <span className="text-sm text-white/60">Stripe Status</span>
             <div className="w-10 h-10 bg-sola-gold/10 flex items-center justify-center">
               <DollarSign className="h-5 w-5 text-sola-gold" />
             </div>
           </div>
-          <div className="mt-4">
-            <span className="font-display text-3xl text-white">$0.00</span>
+          <div className="mt-4 flex items-center gap-2">
+            {isStripeConnected ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <span className="text-green-400 text-sm">Connected</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-5 w-5 text-sola-gold" />
+                <span className="text-sola-gold text-sm">Not Connected</span>
+              </>
+            )}
           </div>
         </div>
       </div>
