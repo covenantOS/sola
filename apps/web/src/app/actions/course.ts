@@ -74,9 +74,9 @@ export async function getCourse(courseId: string) {
 
 export async function createCourse(formData: FormData) {
   const { claims } = await getLogtoContext(logtoConfig)
-  const { user, organization } = await getUserWithOrganization(claims?.sub || "")
+  const { organization } = await getUserWithOrganization(claims?.sub || "")
 
-  if (!organization || !user) {
+  if (!organization) {
     return { error: "Not authorized" }
   }
 
@@ -101,7 +101,6 @@ export async function createCourse(formData: FormData) {
         description: description?.trim(),
         price: price ? parseFloat(price) : null,
         organizationId: organization.id,
-        instructorId: user.id,
       },
     })
 
