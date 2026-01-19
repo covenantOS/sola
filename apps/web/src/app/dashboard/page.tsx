@@ -49,7 +49,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Welcome section */}
-      <div>
+      <div data-tour="dashboard-welcome">
         <h2 className="font-display text-3xl md:text-4xl text-white uppercase tracking-tight">
           Welcome back, {userName}
         </h2>
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Stats grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-tour="dashboard-stats">
         <div className="bg-white/5 border border-white/10 p-6">
           <div className="flex items-center justify-between">
             <span className="text-sm text-white/60">Total Members</span>

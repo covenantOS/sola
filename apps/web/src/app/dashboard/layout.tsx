@@ -4,7 +4,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { logtoConfig } from "@/lib/logto"
 import { UserButton } from "@/components/auth/user-button"
-import { OrganizationSetup } from "@/components/onboarding/organization-setup"
+import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard"
+import { GuidedTour } from "@/components/tour/guided-tour"
 import { syncUserFromLogto, getUserWithOrganization } from "@/lib/user-sync"
 import {
   Home,
@@ -50,10 +51,20 @@ export default async function DashboardLayout({
   // Check if user has an organization
   const { organization } = await getUserWithOrganization(claims?.sub || "")
 
-  // If no organization, show onboarding
+  // If no organization, show full onboarding wizard
   if (!organization) {
-    return <OrganizationSetup userName={dbUser.name || undefined} />
+    return (
+      <OnboardingWizard
+        userName={dbUser.name || undefined}
+        userEmail={dbUser.email}
+        userId={dbUser.id}
+      />
+    )
   }
+
+  // Check if tour should be shown
+  const orgSettings = (organization.settings as Record<string, unknown>) || {}
+  const showTour = orgSettings.showTour === true
 
   const user = {
     sub: claims?.sub || "",
@@ -80,7 +91,7 @@ export default async function DashboardLayout({
             />
           </Link>
         </div>
-        <nav className="flex flex-col gap-1 p-4">
+        <nav className="flex flex-col gap-1 p-4" data-tour="sidebar-nav">
           {navigation.map((item) => (
             <Link
               key={item.name}
@@ -119,6 +130,9 @@ export default async function DashboardLayout({
         {/* Page content */}
         <main className="p-6">{children}</main>
       </div>
+
+      {/* Guided Tour */}
+      <GuidedTour userId={dbUser.id} showTour={showTour} />
     </div>
   )
 }
