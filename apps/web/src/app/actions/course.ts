@@ -54,15 +54,6 @@ export async function getCourse(courseId: string) {
         include: {
           lessons: {
             orderBy: { position: "asc" },
-            include: {
-              media: {
-                select: {
-                  id: true,
-                  muxPlaybackId: true,
-                  duration: true,
-                },
-              },
-            },
           },
         },
       },
@@ -194,13 +185,13 @@ export async function createModule(formData: FormData) {
   }
 
   // Get max position
-  const maxPosition = await db.module.aggregate({
+  const maxPosition = await db.courseModule.aggregate({
     where: { courseId },
     _max: { position: true },
   })
 
   try {
-    const module = await db.module.create({
+    const module = await db.courseModule.create({
       data: {
         title: title.trim(),
         courseId,
@@ -227,7 +218,7 @@ export async function updateModule(moduleId: string, formData: FormData) {
   const title = formData.get("title") as string
 
   try {
-    const module = await db.module.update({
+    const module = await db.courseModule.update({
       where: { id: moduleId },
       data: { title: title?.trim() },
     })
@@ -249,7 +240,7 @@ export async function deleteModule(moduleId: string) {
   }
 
   try {
-    await db.module.delete({
+    await db.courseModule.delete({
       where: { id: moduleId },
     })
 
@@ -358,7 +349,7 @@ export async function deleteLesson(lessonId: string) {
   }
 }
 
-export async function attachMediaToLesson(lessonId: string, mediaId: string) {
+export async function attachVideoToLesson(lessonId: string, muxAssetId: string, muxPlaybackId: string, duration?: number) {
   const { claims } = await getLogtoContext(logtoConfig)
   const { organization } = await getUserWithOrganization(claims?.sub || "")
 
@@ -369,14 +360,18 @@ export async function attachMediaToLesson(lessonId: string, mediaId: string) {
   try {
     const lesson = await db.lesson.update({
       where: { id: lessonId },
-      data: { mediaId },
+      data: {
+        muxAssetId,
+        muxPlaybackId,
+        videoDuration: duration,
+      },
     })
 
     revalidatePath(`/dashboard/courses`)
     return { success: true, lesson }
   } catch (error) {
-    console.error("Failed to attach media to lesson:", error)
-    return { error: "Failed to attach media" }
+    console.error("Failed to attach video to lesson:", error)
+    return { error: "Failed to attach video" }
   }
 }
 
@@ -420,16 +415,32 @@ export async function getUserProgress(courseId: string) {
     where: {
       userId_courseId: { userId: user.id, courseId },
     },
-    include: {
-      progress: true,
-    },
   })
 
   if (!enrollment) {
     return { error: "Not enrolled" }
   }
 
-  return { enrollment, progress: enrollment.progress }
+  // Get completed lessons
+  const completedLessons = await db.lessonCompletion.findMany({
+    where: {
+      userId: user.id,
+      lesson: {
+        module: {
+          courseId,
+        },
+      },
+    },
+    select: {
+      lessonId: true,
+    },
+  })
+
+  return {
+    enrollment,
+    progress: enrollment.progress,
+    completedLessonIds: completedLessons.map(c => c.lessonId),
+  }
 }
 
 export async function markLessonComplete(lessonId: string) {
@@ -471,27 +482,24 @@ export async function markLessonComplete(lessonId: string) {
   }
 
   try {
-    // Create or update progress
-    await db.lessonProgress.upsert({
+    // Create lesson completion record (upsert to handle duplicates)
+    await db.lessonCompletion.upsert({
       where: {
-        enrollmentId_lessonId: {
-          enrollmentId: enrollment.id,
+        userId_lessonId: {
+          userId: user.id,
           lessonId,
         },
       },
       create: {
-        enrollmentId: enrollment.id,
+        userId: user.id,
         lessonId,
-        completed: true,
-        completedAt: new Date(),
       },
       update: {
-        completed: true,
         completedAt: new Date(),
       },
     })
 
-    // Update enrollment completion percentage
+    // Update enrollment progress percentage
     const totalLessons = await db.lesson.count({
       where: {
         module: {
@@ -500,17 +508,23 @@ export async function markLessonComplete(lessonId: string) {
       },
     })
 
-    const completedLessons = await db.lessonProgress.count({
+    const completedLessons = await db.lessonCompletion.count({
       where: {
-        enrollmentId: enrollment.id,
-        completed: true,
+        userId: user.id,
+        lesson: {
+          module: {
+            courseId: lesson.module.courseId,
+          },
+        },
       },
     })
+
+    const progressPercent = Math.round((completedLessons / totalLessons) * 100)
 
     await db.enrollment.update({
       where: { id: enrollment.id },
       data: {
-        completionPercentage: Math.round((completedLessons / totalLessons) * 100),
+        progress: progressPercent,
         completedAt: completedLessons === totalLessons ? new Date() : null,
       },
     })

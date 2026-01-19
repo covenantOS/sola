@@ -38,14 +38,11 @@ type Lesson = {
   id: string
   title: string
   description: string | null
-  type: "VIDEO" | "TEXT" | "QUIZ" | "ASSIGNMENT"
+  type: "VIDEO" | "TEXT" | "QUIZ" | "ASSIGNMENT" | "DOWNLOAD"
   position: number
-  isPublished: boolean
-  media?: {
-    id: string
-    muxPlaybackId: string | null
-    duration: number | null
-  } | null
+  isFreePreview: boolean
+  muxPlaybackId: string | null
+  videoDuration: number | null
 }
 
 type Module = {
@@ -480,18 +477,16 @@ export default function CourseDetailPage() {
                             <Icon className="h-4 w-4 text-white/40" />
                             <span className="text-white/40 text-sm">{moduleIndex + 1}.{lessonIndex + 1}</span>
                             <span className="text-white/80 flex-1">{lesson.title}</span>
-                            {lesson.media?.duration && (
+                            {lesson.videoDuration && (
                               <span className="text-white/30 text-xs">
-                                {Math.round(lesson.media.duration / 60)}min
+                                {Math.round(lesson.videoDuration / 60)}min
                               </span>
                             )}
-                            <span className={`text-xs px-2 py-0.5 ${
-                              lesson.isPublished
-                                ? "bg-green-500/20 text-green-400"
-                                : "bg-white/10 text-white/40"
-                            }`}>
-                              {lesson.isPublished ? "Published" : "Draft"}
-                            </span>
+                            {lesson.isFreePreview && (
+                              <span className="text-xs px-2 py-0.5 bg-sola-gold/20 text-sola-gold">
+                                Free Preview
+                              </span>
+                            )}
                             <button
                               onClick={() => handleDeleteLesson(lesson.id, module.id)}
                               className="p-1 text-white/30 hover:text-sola-red transition-colors"
