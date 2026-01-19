@@ -96,7 +96,12 @@ export default function CourseDetailPage() {
     async function loadCourse() {
       const result = await getCourse(courseId)
       if (result.course) {
-        setCourse(result.course as Course)
+        // Convert Prisma Decimal to number for price
+        const courseData = {
+          ...result.course,
+          price: result.course.price ? Number(result.course.price) : null,
+        } as Course
+        setCourse(courseData)
         // Expand all modules by default
         setExpandedModules(new Set(result.course.modules.map((m: Module) => m.id)))
       }
@@ -126,7 +131,13 @@ export default function CourseDetailPage() {
 
     const result = await updateCourse(courseId, formData)
     if (result.course) {
-      setCourse(prev => prev ? { ...prev, ...result.course } : null)
+      setCourse(prev => prev ? {
+        ...prev,
+        title: result.course.title,
+        description: result.course.description,
+        price: result.course.price ? Number(result.course.price) : null,
+        isPublished: result.course.isPublished,
+      } : null)
       setEditingCourse(false)
     }
     setSaving(false)
