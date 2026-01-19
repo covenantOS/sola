@@ -1,8 +1,6 @@
 import Mux from '@mux/mux-node'
-import { AccessToken, RoomServiceClient } from 'livekit-server-sdk'
 
-// ==================== MUX (Video Hosting) ====================
-
+// Initialize Mux client
 const mux = new Mux({
   tokenId: process.env.MUX_TOKEN_ID!,
   tokenSecret: process.env.MUX_TOKEN_SECRET!,
@@ -10,12 +8,17 @@ const mux = new Mux({
 
 export { mux }
 
+// ==================== VIDEO ON DEMAND (VOD) ====================
+
 // Create a direct upload URL for browser uploads
-export async function createDirectUpload(corsOrigin?: string) {
+export async function createDirectUpload(options?: {
+  corsOrigin?: string
+  isPrivate?: boolean
+}) {
   const upload = await mux.video.uploads.create({
-    cors_origin: corsOrigin || process.env.NEXT_PUBLIC_APP_URL || '*',
+    cors_origin: options?.corsOrigin || process.env.NEXT_PUBLIC_APP_URL || '*',
     new_asset_settings: {
-      playback_policy: ['signed'],
+      playback_policy: [options?.isPrivate ? 'signed' : 'public'],
       encoding_tier: 'baseline',
     },
   })
@@ -31,20 +34,27 @@ export async function getAsset(assetId: string) {
   return asset
 }
 
+// Get playback URL for an asset
+export function getPlaybackUrl(playbackId: string, type: 'hls' | 'thumbnail' = 'hls') {
+  if (type === 'thumbnail') {
+    return `https://image.mux.com/${playbackId}/thumbnail.jpg`
+  }
+  return `https://stream.mux.com/${playbackId}.m3u8`
+}
+
 // Create signed playback token for private videos
-export async function createPlaybackToken(playbackId: string) {
-  // Note: Requires Mux signing key to be configured
+export async function createPlaybackToken(playbackId: string, expiresIn = '2h') {
   const signingKeyId = process.env.MUX_SIGNING_KEY_ID
   const signingKeySecret = process.env.MUX_SIGNING_KEY_SECRET
 
   if (!signingKeyId || !signingKeySecret) {
-    throw new Error('Mux signing keys not configured')
+    throw new Error('Mux signing keys not configured for private playback')
   }
 
   const token = await mux.jwt.signPlaybackId(playbackId, {
     keyId: signingKeyId,
     keySecret: signingKeySecret,
-    expiration: '2h',
+    expiration: expiresIn,
   })
 
   return token
@@ -55,75 +65,88 @@ export async function deleteAsset(assetId: string) {
   await mux.video.assets.delete(assetId)
 }
 
-// ==================== LIVEKIT (Livestreaming) ====================
+// ==================== LIVESTREAMING ====================
 
-const livekitHost = process.env.LIVEKIT_URL!
-const livekitApiKey = process.env.LIVEKIT_API_KEY!
-const livekitApiSecret = process.env.LIVEKIT_API_SECRET!
-
-const roomService = new RoomServiceClient(
-  livekitHost,
-  livekitApiKey,
-  livekitApiSecret
-)
-
-export { roomService }
-
-// Create a new LiveKit room
-export async function createRoom(roomName: string, options?: {
-  emptyTimeout?: number
-  maxParticipants?: number
+// Create a new livestream
+export async function createLivestream(options?: {
+  playbackPolicy?: 'public' | 'signed'
+  reconnectWindow?: number // seconds, default 60
+  latencyMode?: 'low' | 'reduced' | 'standard'
 }) {
-  const room = await roomService.createRoom({
-    name: roomName,
-    emptyTimeout: options?.emptyTimeout || 600, // 10 minutes
-    maxParticipants: options?.maxParticipants || 100,
-  })
-  return room
-}
-
-// Delete a room
-export async function deleteRoom(roomName: string) {
-  await roomService.deleteRoom(roomName)
-}
-
-// List all rooms
-export async function listRooms() {
-  const rooms = await roomService.listRooms()
-  return rooms
-}
-
-// Generate access token for joining a room
-export async function createRoomToken({
-  roomName,
-  participantName,
-  participantIdentity,
-  isHost = false,
-}: {
-  roomName: string
-  participantName: string
-  participantIdentity: string
-  isHost?: boolean
-}) {
-  const at = new AccessToken(livekitApiKey, livekitApiSecret, {
-    identity: participantIdentity,
-    name: participantName,
+  const livestream = await mux.video.liveStreams.create({
+    playback_policy: [options?.playbackPolicy || 'public'],
+    new_asset_settings: {
+      playback_policy: [options?.playbackPolicy || 'public'],
+    },
+    reconnect_window: options?.reconnectWindow || 60,
+    latency_mode: options?.latencyMode || 'low',
   })
 
-  at.addGrant({
-    room: roomName,
-    roomJoin: true,
-    canPublish: isHost,
-    canSubscribe: true,
-    canPublishData: true,
-  })
-
-  return at.toJwt()
+  return {
+    id: livestream.id,
+    streamKey: livestream.stream_key,
+    playbackIds: livestream.playback_ids,
+    rtmpUrl: 'rtmps://global-live.mux.com:443/app',
+    status: livestream.status,
+  }
 }
 
-// Start recording a room to Mux
-export async function startRoomRecording(roomName: string) {
-  // LiveKit Egress API would be used here
-  // This requires additional setup for egress configuration
-  throw new Error('Recording not yet implemented - requires LiveKit Egress setup')
+// Get livestream details
+export async function getLivestream(livestreamId: string) {
+  const livestream = await mux.video.liveStreams.retrieve(livestreamId)
+  return {
+    id: livestream.id,
+    streamKey: livestream.stream_key,
+    playbackIds: livestream.playback_ids,
+    status: livestream.status,
+    activeAssetId: livestream.active_asset_id,
+    recentAssetIds: livestream.recent_asset_ids,
+  }
+}
+
+// Reset stream key (if compromised)
+export async function resetStreamKey(livestreamId: string) {
+  const livestream = await mux.video.liveStreams.resetStreamKey(livestreamId)
+  return livestream.stream_key
+}
+
+// Signal livestream is complete
+export async function completeLivestream(livestreamId: string) {
+  await mux.video.liveStreams.complete(livestreamId)
+}
+
+// Delete a livestream
+export async function deleteLivestream(livestreamId: string) {
+  await mux.video.liveStreams.delete(livestreamId)
+}
+
+// Enable/disable a livestream
+export async function enableLivestream(livestreamId: string) {
+  await mux.video.liveStreams.enable(livestreamId)
+}
+
+export async function disableLivestream(livestreamId: string) {
+  await mux.video.liveStreams.disable(livestreamId)
+}
+
+// Get live playback URL
+export function getLivePlaybackUrl(playbackId: string) {
+  return `https://stream.mux.com/${playbackId}.m3u8`
+}
+
+// ==================== WEBHOOK HELPERS ====================
+
+// Verify Mux webhook signature
+export function verifyWebhookSignature(
+  payload: string,
+  signature: string,
+  secret: string
+): boolean {
+  // Mux uses simple signature verification
+  const crypto = require('crypto')
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex')
+  return signature === expectedSignature
 }

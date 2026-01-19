@@ -8,14 +8,12 @@ Sola+ 2.0 is a creator platform for Christian creators, pastors, and ministries.
 - **Frontend**: Next.js 14 (App Router) + Shadcn/ui + Tailwind CSS
 - **Database**: PostgreSQL (Supabase) + Redis (Upstash)
 - **ORM**: Prisma
-- **Auth**: Logto (self-hosted, multi-tenant)
+- **Auth**: Logto (cloud, multi-tenant)
 - **Payments**: Stripe Connect Express (users connect their own Stripe accounts)
-- **Video**: Mux (hosting, transcoding, HLS streaming)
-- **Livestreaming**: LiveKit (WebRTC, real-time)
+- **Video & Livestreaming**: Mux (hosting, transcoding, HLS streaming, live)
 - **Real-time**: Socket.IO with Redis adapter
 - **Storage**: Cloudflare R2 (S3-compatible)
-- **Feature Flags**: Flagsmith
-- **PDFs**: Gotenberg
+- **Email**: Resend
 
 ## Key Directories
 ```
@@ -24,7 +22,7 @@ Sola+ 2.0 is a creator platform for Christian creators, pastors, and ministries.
 /packages/database - Prisma client and schema
 /packages/auth     - Logto integration
 /packages/payments - Stripe Connect integration
-/packages/video    - Mux + LiveKit integration
+/packages/video    - Mux integration (video + livestreaming)
 /packages/realtime - Socket.IO server
 /packages/email    - Transactional emails (Resend)
 /packages/ui       - Shared React components (Shadcn/ui)
@@ -52,14 +50,14 @@ The Prisma schema at `/prisma/schema.prisma` contains all models:
 1. **No homepage needed** - Homepage is hosted elsewhere
 2. **Subdomain routing**: All creator sites use `*.my.solaplus.ai`
 3. **Stripe Connect Express**: Platform takes application fee, money goes to creator's bank
-4. **Video flow**: Mux for VOD, LiveKit for live streams, recordings go to Mux
+4. **Video flow**: Mux for both VOD and livestreaming (RTMP ingest, HLS delivery)
 
 ## Build Order
 1. Foundation: Auth (Logto), Database (Prisma), basic Next.js app
 2. Stripe Connect: Onboarding flow, destination charges
 3. Community: Channels, posts, comments, reactions, real-time
 4. Courses: Modules, lessons, video player, progress tracking
-5. Livestreaming: LiveKit integration, recording to Mux
+5. Livestreaming: Mux Live integration
 6. Site Builder: Framely fork (future phase)
 
 ## API Keys Location

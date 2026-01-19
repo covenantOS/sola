@@ -1,33 +1,35 @@
-// Logto authentication integration
-// Configure in apps/web with environment variables
+// Logto authentication integration for Next.js App Router
+// Uses @logto/next with server actions
 
-export interface LogtoConfig {
-  endpoint: string
-  appId: string
-  appSecret: string
-  baseUrl: string
-  cookieSecret: string
+export const logtoConfig = {
+  endpoint: process.env.LOGTO_ENDPOINT!,
+  appId: process.env.LOGTO_APP_ID!,
+  appSecret: process.env.LOGTO_APP_SECRET!,
+  baseUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  cookieSecret: process.env.LOGTO_COOKIE_SECRET!,
+  cookieSecure: process.env.NODE_ENV === 'production',
 }
 
-export function getLogtoConfig(): LogtoConfig {
-  const endpoint = process.env.LOGTO_ENDPOINT
-  const appId = process.env.LOGTO_APP_ID
-  const appSecret = process.env.LOGTO_APP_SECRET
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-  const cookieSecret = process.env.LOGTO_COOKIE_SECRET
-
-  if (!endpoint || !appId || !appSecret || !baseUrl || !cookieSecret) {
-    throw new Error('Missing Logto environment variables')
+export function getLogtoConfig() {
+  if (!process.env.LOGTO_ENDPOINT) {
+    throw new Error('LOGTO_ENDPOINT is required')
   }
-
-  return {
-    endpoint,
-    appId,
-    appSecret,
-    baseUrl,
-    cookieSecret,
+  if (!process.env.LOGTO_APP_ID) {
+    throw new Error('LOGTO_APP_ID is required')
   }
+  if (!process.env.LOGTO_APP_SECRET) {
+    throw new Error('LOGTO_APP_SECRET is required')
+  }
+  if (!process.env.LOGTO_COOKIE_SECRET) {
+    throw new Error('LOGTO_COOKIE_SECRET is required')
+  }
+  return logtoConfig
 }
 
-// Re-export Logto Next.js utilities when configured
-export { handleSignIn, handleSignOut, handleSignInCallback } from '@logto/next'
+// Re-export from @logto/next for convenience
+export {
+  getLogtoContext,
+  signIn,
+  signOut,
+  handleSignIn,
+} from '@logto/next/server-actions'
