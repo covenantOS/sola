@@ -306,7 +306,7 @@ export async function updateLesson(lessonId: string, formData: FormData) {
   const title = formData.get("title") as string
   const description = formData.get("description") as string | undefined
   const content = formData.get("content") as string | undefined
-  const isPublished = formData.get("isPublished") === "true"
+  const isFreePreview = formData.get("isFreePreview") === "true"
 
   try {
     const lesson = await db.lesson.update({
@@ -315,7 +315,7 @@ export async function updateLesson(lessonId: string, formData: FormData) {
         title: title?.trim(),
         description: description?.trim(),
         content: content?.trim(),
-        isPublished,
+        isFreePreview,
       },
     })
 
