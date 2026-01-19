@@ -44,13 +44,17 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-sola-black">
+      {/* Red accent line at top */}
+      <div className="fixed top-0 left-0 right-0 h-1 bg-sola-red z-[60]" />
+
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r">
-        <div className="flex h-16 items-center px-6 border-b">
+      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-sola-dark-navy border-r border-white/10 pt-1">
+        <div className="flex h-16 items-center px-6 border-b border-white/10">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Sola+
+            <span className="font-display text-2xl font-bold">
+              <span className="text-white">SOLA</span>
+              <span className="text-sola-red">+</span>
             </span>
           </Link>
         </div>
@@ -59,21 +63,25 @@ export default async function DashboardLayout({
             <Link
               key={item.name}
               href={item.href}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 text-white/60 hover:text-white hover:bg-white/5 border-l-2 border-transparent hover:border-sola-red transition-all duration-200"
             >
               <item.icon className="h-5 w-5" />
-              {item.name}
+              <span className="font-display text-sm uppercase tracking-wide">
+                {item.name}
+              </span>
             </Link>
           ))}
         </nav>
       </div>
 
       {/* Main content */}
-      <div className="pl-64">
+      <div className="pl-64 pt-1">
         {/* Top bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+        <header className="sticky top-1 z-40 flex h-16 items-center justify-between border-b border-white/10 bg-sola-black/95 backdrop-blur px-6">
           <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold">Creator Dashboard</h1>
+            <h1 className="font-display text-lg text-white uppercase tracking-wide">
+              Creator Dashboard
+            </h1>
           </div>
           <div className="flex items-center gap-4">
             <UserButton
