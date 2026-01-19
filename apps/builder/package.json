@@ -1,0 +1,6 @@
+{
+  "name": "@sola/builder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framely-based site builder for Sola+ (future implementation)"
+}
