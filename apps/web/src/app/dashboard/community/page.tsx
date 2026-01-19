@@ -104,7 +104,7 @@ export default function CommunityPage() {
 
     const result = await createChannel(formData)
     if (result.success && result.channel) {
-      setChannels(prev => [...prev, result.channel as Channel])
+      setChannels(prev => [...prev, { ...result.channel, _count: { posts: 0 } } as Channel])
       setNewChannelName("")
       setShowNewChannel(false)
     }
