@@ -1,6 +1,7 @@
 import { getLogtoContext, signOut } from "@logto/next/server-actions"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { logtoConfig } from "@/lib/logto"
 import { UserButton } from "@/components/auth/user-button"
 import {
@@ -52,10 +53,13 @@ export default async function DashboardLayout({
       <div className="fixed inset-y-0 left-0 z-50 w-64 bg-sola-dark-navy border-r border-white/10 pt-1">
         <div className="flex h-16 items-center px-6 border-b border-white/10">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="font-display text-2xl font-bold">
-              <span className="text-white">SOLA</span>
-              <span className="text-sola-red">+</span>
-            </span>
+            <Image
+              src="/logo-dark.svg"
+              alt="Sola+"
+              width={120}
+              height={24}
+              className="h-8 w-auto"
+            />
           </Link>
         </div>
         <nav className="flex flex-col gap-1 p-4">

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { logtoConfig } from "@/lib/logto"
 import { SignInButton } from "@/components/auth/sign-in-button"
 import { Users, BookOpen, Video, Church, Shield, Zap } from "lucide-react"
+import Image from "next/image"
 
 export default async function Home() {
   const { isAuthenticated } = await getLogtoContext(logtoConfig)
@@ -20,10 +21,16 @@ export default async function Home() {
       <div className="flex flex-col items-center justify-center px-6 py-24 md:py-32">
         <div className="text-center max-w-4xl">
           {/* Logo */}
-          <h1 className="font-display text-6xl md:text-8xl font-bold tracking-tight mb-6">
-            <span className="text-white">SOLA</span>
-            <span className="text-sola-red">+</span>
-          </h1>
+          <div className="mb-6">
+            <Image
+              src="/logo-dark.svg"
+              alt="Sola+"
+              width={320}
+              height={64}
+              className="h-16 md:h-20 w-auto mx-auto"
+              priority
+            />
+          </div>
 
           {/* Tagline */}
           <p className="font-display text-xl md:text-2xl text-sola-gold uppercase tracking-widest mb-4">
@@ -148,10 +155,13 @@ export default async function Home() {
       {/* Footer */}
       <footer className="px-6 py-12 border-t border-white/10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="font-display text-2xl font-bold">
-            <span className="text-white">SOLA</span>
-            <span className="text-sola-red">+</span>
-          </div>
+          <Image
+            src="/logo-dark.svg"
+            alt="Sola+"
+            width={120}
+            height={24}
+            className="h-8 w-auto"
+          />
           <p className="text-white/40 text-sm">
             The only platform that&apos;s unapologetically Christian.
           </p>
