@@ -396,7 +396,7 @@ export async function getEnrollments(courseId: string) {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { enrolledAt: "desc" },
   })
 
   return { enrollments }
