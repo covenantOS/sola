@@ -39,22 +39,85 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated, claims } = await getLogtoContext(logtoConfig)
+  // Check if required environment variables are set
+  if (!process.env.LOGTO_ENDPOINT || !process.env.LOGTO_APP_ID) {
+    return (
+      <div className="min-h-screen bg-sola-black flex items-center justify-center p-8">
+        <div className="max-w-lg text-center">
+          <h1 className="font-display text-2xl text-sola-red uppercase tracking-wide mb-4">
+            Configuration Error
+          </h1>
+          <p className="text-white/60 mb-4">
+            Missing required environment variables. Please configure Logto authentication.
+          </p>
+          <p className="text-white/40 text-sm">
+            Required: LOGTO_ENDPOINT, LOGTO_APP_ID, LOGTO_APP_SECRET, LOGTO_COOKIE_SECRET
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  let isAuthenticated = false
+  let claims: Record<string, unknown> | undefined
+
+  try {
+    const context = await getLogtoContext(logtoConfig)
+    isAuthenticated = context.isAuthenticated
+    claims = context.claims
+  } catch (error) {
+    console.error("Logto context error:", error)
+    return (
+      <div className="min-h-screen bg-sola-black flex items-center justify-center p-8">
+        <div className="max-w-lg text-center">
+          <h1 className="font-display text-2xl text-sola-red uppercase tracking-wide mb-4">
+            Authentication Error
+          </h1>
+          <p className="text-white/60 mb-4">
+            Unable to verify authentication. Please try again.
+          </p>
+          <a href="/" className="text-sola-gold hover:underline">
+            Return to Home
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
     redirect("/")
   }
 
   // Sync user to database on every dashboard load
-  const dbUser = await syncUserFromLogto({
-    sub: claims?.sub || "",
-    email: claims?.email as string | undefined,
-    name: claims?.name as string | undefined,
-    picture: claims?.picture as string | undefined,
-  })
+  let dbUser
+  try {
+    dbUser = await syncUserFromLogto({
+      sub: claims?.sub as string || "",
+      email: claims?.email as string | undefined,
+      name: claims?.name as string | undefined,
+      picture: claims?.picture as string | undefined,
+    })
+  } catch (error) {
+    console.error("User sync error:", error)
+    return (
+      <div className="min-h-screen bg-sola-black flex items-center justify-center p-8">
+        <div className="max-w-lg text-center">
+          <h1 className="font-display text-2xl text-sola-red uppercase tracking-wide mb-4">
+            Database Error
+          </h1>
+          <p className="text-white/60 mb-4">
+            Unable to sync user data. Please check database connection.
+          </p>
+          <a href="/" className="text-sola-gold hover:underline">
+            Return to Home
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   // Check if user has an organization
-  const { organization } = await getUserWithOrganization(claims?.sub || "")
+  const { organization } = await getUserWithOrganization(claims?.sub as string || "")
 
   // If no organization, show full onboarding wizard
   if (!organization) {
@@ -72,7 +135,7 @@ export default async function DashboardLayout({
   const showTour = orgSettings.showTour === true
 
   const user = {
-    sub: claims?.sub || "",
+    sub: (claims?.sub as string) || "",
     name: claims?.name as string | undefined,
     email: claims?.email as string | undefined,
     picture: claims?.picture as string | undefined,
