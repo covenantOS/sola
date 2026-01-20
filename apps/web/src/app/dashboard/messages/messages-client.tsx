@@ -72,6 +72,9 @@ export function MessagesClient({ initialConversations }: MessagesClientProps) {
   const [showNewChat, setShowNewChat] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+  const [initialMessage, setInitialMessage] = useState("")
+  const [isStartingChat, setIsStartingChat] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -117,23 +120,59 @@ export function MessagesClient({ initialConversations }: MessagesClientProps) {
 
   const openNewChat = async () => {
     setShowNewChat(true)
+    setSelectedMember(null)
+    setInitialMessage("")
     const result = await getOrganizationMembers()
     if (!result.error) {
       setMembers(result.members)
     }
   }
 
-  const startNewChat = async (memberId: string) => {
-    setShowNewChat(false)
+  const selectMemberForChat = (member: Member) => {
+    setSelectedMember(member)
+  }
+
+  const startNewChat = async () => {
+    if (!selectedMember || !initialMessage.trim()) return
+
+    setIsStartingChat(true)
     const result = await startConversation({
-      participantId: memberId,
-      initialMessage: "Hi!",
+      participantId: selectedMember.id,
+      initialMessage: initialMessage.trim(),
     })
+
     if (!result.error && result.conversationId) {
+      // Add the new conversation to the list optimistically
+      const newConv: Conversation = {
+        id: result.conversationId,
+        type: "DIRECT",
+        name: selectedMember.name,
+        avatar: selectedMember.avatar,
+        participants: [{
+          id: selectedMember.id,
+          name: selectedMember.name,
+          avatar: selectedMember.avatar,
+        }],
+        lastMessage: {
+          content: initialMessage.trim(),
+          createdAt: new Date(),
+        },
+        updatedAt: new Date(),
+      }
+      setConversations((prev) => [newConv, ...prev])
+
+      // Load the messages and close the modal
       loadMessages(result.conversationId)
-      // Refresh conversations list
-      window.location.reload()
+      setShowNewChat(false)
+      setSelectedMember(null)
+      setInitialMessage("")
     }
+    setIsStartingChat(false)
+  }
+
+  const goBackToMemberList = () => {
+    setSelectedMember(null)
+    setInitialMessage("")
   }
 
   const selectedConv = conversations.find((c) => c.id === selectedConversation)
@@ -332,11 +371,25 @@ export function MessagesClient({ initialConversations }: MessagesClientProps) {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-sola-dark-navy border border-white/10 w-full max-w-md">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="font-display text-lg text-white uppercase tracking-wide">
-                New Conversation
-              </h3>
+              <div className="flex items-center gap-3">
+                {selectedMember && (
+                  <button
+                    onClick={goBackToMemberList}
+                    className="text-white/60 hover:text-white transition-colors text-sm"
+                  >
+                    ← Back
+                  </button>
+                )}
+                <h3 className="font-display text-lg text-white uppercase tracking-wide">
+                  {selectedMember ? `Message ${selectedMember.name || "Member"}` : "New Conversation"}
+                </h3>
+              </div>
               <button
-                onClick={() => setShowNewChat(false)}
+                onClick={() => {
+                  setShowNewChat(false)
+                  setSelectedMember(null)
+                  setInitialMessage("")
+                }}
                 className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
               >
                 <X className="h-5 w-5 text-white/60" />
@@ -344,50 +397,113 @@ export function MessagesClient({ initialConversations }: MessagesClientProps) {
             </div>
 
             <div className="p-4">
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search members..."
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors"
-                />
-              </div>
+              {/* Step 1: Select Member */}
+              {!selectedMember && (
+                <>
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search members..."
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors"
+                    />
+                  </div>
 
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                {filteredMembers.length === 0 ? (
-                  <p className="text-center text-white/40 py-4">
-                    {members.length === 0
-                      ? "No members in your organization yet"
-                      : "No members found"}
-                  </p>
-                ) : (
-                  filteredMembers.map((member) => (
-                    <button
-                      key={member.id}
-                      onClick={() => startNewChat(member.id)}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors"
-                    >
-                      <div className="w-10 h-10 bg-white/10 flex items-center justify-center overflow-hidden">
-                        {member.avatar ? (
-                          <img
-                            src={member.avatar}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User className="h-5 w-5 text-white/40" />
-                        )}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-white">{member.name || "Unknown"}</p>
-                        <p className="text-sm text-white/50">{member.email}</p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {filteredMembers.length === 0 ? (
+                      <p className="text-center text-white/40 py-4">
+                        {members.length === 0
+                          ? "No members in your organization yet"
+                          : "No members found"}
+                      </p>
+                    ) : (
+                      filteredMembers.map((member) => (
+                        <button
+                          key={member.id}
+                          onClick={() => selectMemberForChat(member)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors"
+                        >
+                          <div className="w-10 h-10 bg-white/10 flex items-center justify-center overflow-hidden">
+                            {member.avatar ? (
+                              <img
+                                src={member.avatar}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <User className="h-5 w-5 text-white/40" />
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <p className="text-white">{member.name || "Unknown"}</p>
+                            <p className="text-sm text-white/50">{member.email}</p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: Write Message */}
+              {selectedMember && (
+                <div className="space-y-4">
+                  {/* Selected member preview */}
+                  <div className="flex items-center gap-3 p-3 bg-white/5 rounded">
+                    <div className="w-10 h-10 bg-white/10 flex items-center justify-center overflow-hidden">
+                      {selectedMember.avatar ? (
+                        <img
+                          src={selectedMember.avatar}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-5 w-5 text-white/40" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-white">{selectedMember.name || "Unknown"}</p>
+                      <p className="text-sm text-white/50">{selectedMember.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Message input */}
+                  <div>
+                    <label className="block text-sm text-white/60 mb-2">
+                      Write your message
+                    </label>
+                    <textarea
+                      value={initialMessage}
+                      onChange={(e) => setInitialMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      rows={4}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors resize-none"
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Send button */}
+                  <button
+                    onClick={startNewChat}
+                    disabled={!initialMessage.trim() || isStartingChat}
+                    className="w-full bg-sola-gold text-sola-black font-display uppercase tracking-wide py-3 flex items-center justify-center gap-2 hover:bg-sola-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isStartingChat ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Send Message
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
