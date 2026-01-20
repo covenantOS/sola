@@ -12,11 +12,13 @@ import {
   BookOpen,
   Lock,
   MessageSquare,
-  Heart,
   Users,
+  Pin,
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { CommunityPostComposer } from "@/components/public/community-post-composer"
+import { PostReactions } from "@/components/public/post-reactions"
+import { getPermissionContext, hasRole, getRoleBadgeStyle, canModifyPost } from "@/lib/permissions"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -60,6 +62,10 @@ export default async function CommunityPage({ params, searchParams }: PageProps)
   }
 
   const isOrgOwner = organization.ownerId === user.id
+
+  // Get permission context for moderation
+  const permissionContext = await getPermissionContext(user.id, organization.id)
+  const canModerate = hasRole(permissionContext, "MODERATOR")
 
   // Filter channels by access
   const accessibleChannels = channels.filter((channel) =>
@@ -238,51 +244,62 @@ export default async function CommunityPage({ params, searchParams }: PageProps)
                   </div>
                 ) : (
                   <div className="divide-y divide-white/5">
-                    {posts.map((post) => (
-                      <div key={post.id} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
-                        <div className="flex gap-4">
-                          {post.author.avatar ? (
-                            <img
-                              src={post.author.avatar}
-                              alt={post.author.name || "User"}
-                              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-sola-gold/20 rounded-full flex items-center justify-center flex-shrink-0">
-                              <span className="text-sola-gold font-display text-sm">
-                                {(post.author.name || "U")[0].toUpperCase()}
-                              </span>
+                    {posts.map((post) => {
+                      const userReactions = post.reactions?.map((r: { emoji: string }) => r.emoji) || []
+                      const canDeletePost = canModifyPost(permissionContext, post)
+
+                      return (
+                        <div key={post.id} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
+                          {post.isPinned && (
+                            <div className="flex items-center gap-1 text-sola-gold text-xs mb-2">
+                              <Pin className="h-3 w-3" />
+                              <span>Pinned</span>
                             </div>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-display text-white text-sm uppercase tracking-wide">
-                                {post.author.name || "Anonymous"}
-                              </span>
-                              {post.author.id === organization.ownerId && (
-                                <span className="bg-sola-gold/20 text-sola-gold text-xs px-2 py-0.5 uppercase tracking-wide">
-                                  Creator
+                          <div className="flex gap-4">
+                            {post.author.avatar ? (
+                              <img
+                                src={post.author.avatar}
+                                alt={post.author.name || "User"}
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-sola-gold/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-sola-gold font-display text-sm">
+                                  {(post.author.name || "U")[0].toUpperCase()}
                                 </span>
-                              )}
-                              <span className="text-white/30 text-xs">
-                                {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
-                              </span>
-                            </div>
-                            <p className="text-white/80 mt-2 whitespace-pre-wrap">{post.content}</p>
-                            <div className="flex items-center gap-4 mt-3">
-                              <button className="flex items-center gap-1 text-xs text-white/40 hover:text-sola-red transition-colors">
-                                <Heart className="h-4 w-4" />
-                                {post._count.reactions > 0 && post._count.reactions}
-                              </button>
-                              <button className="flex items-center gap-1 text-xs text-white/40 hover:text-sola-gold transition-colors">
-                                <MessageSquare className="h-4 w-4" />
-                                {post._count.comments > 0 && post._count.comments}
-                              </button>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-display text-white text-sm uppercase tracking-wide">
+                                  {post.author.name || "Anonymous"}
+                                </span>
+                                {post.author.id === organization.ownerId && (
+                                  <span className="bg-sola-gold text-sola-black text-xs px-2 py-0.5 uppercase tracking-wide">
+                                    Creator
+                                  </span>
+                                )}
+                                <span className="text-white/30 text-xs">
+                                  {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                                </span>
+                              </div>
+                              <p className="text-white/80 mt-2 whitespace-pre-wrap">{post.content}</p>
+                              <PostReactions
+                                postId={post.id}
+                                reactionCount={post._count.reactions}
+                                commentCount={post._count.comments}
+                                userReactions={userReactions}
+                                canDelete={canDeletePost}
+                                canPin={canModerate}
+                                isPinned={post.isPinned}
+                                slug={slug}
+                              />
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
