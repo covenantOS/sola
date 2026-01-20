@@ -482,13 +482,17 @@ export default function CourseDetailPage() {
                       module.lessons.map((lesson, lessonIndex) => {
                         const Icon = lessonTypeIcons[lesson.type]
                         return (
-                          <div
+                          <Link
                             key={lesson.id}
-                            className="flex items-center gap-3 px-4 py-3 pl-16 hover:bg-white/[0.02] border-t border-white/5 first:border-t-0"
+                            href={`/dashboard/courses/${courseId}/lessons/${lesson.id}`}
+                            className="flex items-center gap-3 px-4 py-3 pl-16 hover:bg-white/[0.02] border-t border-white/5 first:border-t-0 group"
                           >
-                            <Icon className="h-4 w-4 text-white/40" />
+                            <Icon className="h-4 w-4 text-white/40 group-hover:text-sola-gold" />
                             <span className="text-white/40 text-sm">{moduleIndex + 1}.{lessonIndex + 1}</span>
-                            <span className="text-white/80 flex-1">{lesson.title}</span>
+                            <span className="text-white/80 flex-1 group-hover:text-white">{lesson.title}</span>
+                            {lesson.muxPlaybackId && (
+                              <span className="text-xs text-green-500">●</span>
+                            )}
                             {lesson.videoDuration && (
                               <span className="text-white/30 text-xs">
                                 {Math.round(lesson.videoDuration / 60)}min
@@ -499,13 +503,18 @@ export default function CourseDetailPage() {
                                 Free Preview
                               </span>
                             )}
+                            <Edit2 className="h-3 w-3 text-white/30 group-hover:text-sola-gold" />
                             <button
-                              onClick={() => handleDeleteLesson(lesson.id, module.id)}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleDeleteLesson(lesson.id, module.id)
+                              }}
                               className="p-1 text-white/30 hover:text-sola-red transition-colors"
                             >
                               <Trash2 className="h-3 w-3" />
                             </button>
-                          </div>
+                          </Link>
                         )
                       })
                     )}

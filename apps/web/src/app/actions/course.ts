@@ -348,6 +348,52 @@ export async function deleteLesson(lessonId: string) {
   }
 }
 
+export async function getVideoUploadUrl(lessonId: string) {
+  const { claims } = await getLogtoContext(logtoConfig)
+  const { organization } = await getUserWithOrganization(claims?.sub || "")
+
+  if (!organization) {
+    return { error: "Not authorized" }
+  }
+
+  // Verify the lesson belongs to this organization
+  const lesson = await db.lesson.findUnique({
+    where: { id: lessonId },
+    include: {
+      module: {
+        include: {
+          course: true,
+        },
+      },
+    },
+  })
+
+  if (!lesson || lesson.module.course.organizationId !== organization.id) {
+    return { error: "Lesson not found" }
+  }
+
+  try {
+    const { createDirectUpload } = await import("@/lib/mux")
+    const upload = await createDirectUpload({
+      corsOrigin: process.env.NEXT_PUBLIC_APP_URL || "*",
+      isPrivate: false,
+    })
+
+    // Store the upload ID association with the lesson
+    await db.lesson.update({
+      where: { id: lessonId },
+      data: {
+        muxAssetId: upload.uploadId, // Temporarily store upload ID
+      },
+    })
+
+    return { success: true, uploadUrl: upload.uploadUrl, uploadId: upload.uploadId }
+  } catch (error) {
+    console.error("Failed to get upload URL:", error)
+    return { error: "Failed to get upload URL" }
+  }
+}
+
 export async function attachVideoToLesson(lessonId: string, muxAssetId: string, muxPlaybackId: string, duration?: number) {
   const { claims } = await getLogtoContext(logtoConfig)
   const { organization } = await getUserWithOrganization(claims?.sub || "")
