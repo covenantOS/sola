@@ -61,15 +61,11 @@ export async function createLivestream({
 
   const org = user.ownedOrganizations[0]
 
-  // Generate a unique room name for LiveKit
-  const roomName = `${org.slug}-${Date.now()}-${Math.random().toString(36).substring(7)}`
-
   const livestream = await db.livestream.create({
     data: {
       title,
       description,
       organizationId: org.id,
-      livekitRoomName: roomName,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       isPublic,
       status: scheduledAt ? "SCHEDULED" : "SCHEDULED",

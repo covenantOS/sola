@@ -87,15 +87,13 @@ const RESERVED_SUBDOMAINS = [
   "mail", "ftp", "smtp", "pop", "imap", "cdn", "static", "assets",
 ]
 
-// Update domain settings
+// Update domain settings (slug only - custom domains managed via Domain model)
 export async function updateDomainSettings({
   organizationId,
   slug,
-  customDomain,
 }: {
   organizationId: string
   slug: string
-  customDomain: string | null
 }) {
   try {
     // Validate slug format
@@ -124,71 +122,13 @@ export async function updateDomainSettings({
       return { error: "This subdomain is already taken" }
     }
 
-    // Get current org to check for domain changes
-    const currentOrg = await db.organization.findUnique({
-      where: { id: organizationId },
-    })
-
-    if (!currentOrg) {
-      return { error: "Organization not found" }
-    }
-
-    let dnsInstructions = null
-
-    // Handle custom domain changes
-    if (customDomain) {
-      // Basic domain validation
-      const domainRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/
-      if (!domainRegex.test(customDomain.toLowerCase())) {
-        return { error: "Invalid domain format" }
-      }
-
-      // Check if custom domain is already taken
-      const existingDomain = await db.organization.findFirst({
-        where: {
-          customDomain: customDomain.toLowerCase(),
-          id: { not: organizationId },
-        },
-      })
-
-      if (existingDomain) {
-        return { error: "This custom domain is already in use" }
-      }
-
-      // If custom domain changed, add to Vercel
-      if (currentOrg.customDomain !== customDomain.toLowerCase()) {
-        // Remove old domain from Vercel if it exists
-        if (currentOrg.customDomain) {
-          await removeDomainFromVercel(currentOrg.customDomain)
-        }
-
-        // Add new domain to Vercel
-        const result = await addDomainToVercel(customDomain.toLowerCase())
-
-        if (!result.success) {
-          return { error: result.error || "Failed to configure custom domain" }
-        }
-
-        dnsInstructions = result.dnsInstructions
-      }
-    } else if (currentOrg.customDomain) {
-      // Custom domain was removed, remove from Vercel
-      await removeDomainFromVercel(currentOrg.customDomain)
-    }
-
     await db.organization.update({
       where: { id: organizationId },
-      data: {
-        slug,
-        customDomain: customDomain?.toLowerCase() || null,
-      },
+      data: { slug },
     })
 
     revalidatePath("/dashboard/settings")
-    return {
-      success: true,
-      dnsInstructions,
-    }
+    return { success: true }
   } catch (error) {
     console.error("Failed to update domain settings:", error)
     return { error: "Failed to update domain settings" }

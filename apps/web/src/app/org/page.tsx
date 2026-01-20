@@ -312,7 +312,7 @@ export default async function OrgHomePage() {
                           ${Number(tier.price)}
                         </span>
                         <span className="text-white/40">
-                          /{tier.billingPeriod === "YEARLY" ? "year" : "month"}
+                          /{tier.interval === "year" ? "year" : "month"}
                         </span>
                       </div>
                       {tier.description && (

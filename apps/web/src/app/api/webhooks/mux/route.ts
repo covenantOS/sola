@@ -245,7 +245,7 @@ async function handleLivestreamConnected(data: Record<string, unknown>) {
   const livestream = await db.livestream.findFirst({
     where: {
       OR: [
-        { livekitRoomId: streamId },
+        { muxLiveStreamId: streamId },
         { muxPlaybackId: streamId },
       ],
     },
@@ -287,7 +287,7 @@ async function handleLivestreamIdle(data: Record<string, unknown>) {
   const livestream = await db.livestream.findFirst({
     where: {
       OR: [
-        { livekitRoomId: streamId },
+        { muxLiveStreamId: streamId },
         { muxPlaybackId: streamId },
       ],
     },

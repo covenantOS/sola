@@ -113,22 +113,12 @@ export function DomainForm({
       const result = await updateDomainSettings({
         organizationId,
         slug,
-        customDomain: customDomain || null,
       })
 
       if (result.error) {
         setError(result.error)
       } else {
         setSuccess(true)
-        if (result.dnsInstructions) {
-          setDnsInstructions(result.dnsInstructions)
-        }
-        if (customDomain) {
-          await checkDomainStatusAsync(customDomain)
-        } else {
-          setDomainStatus(null)
-          setDnsInstructions(null)
-        }
         router.refresh()
       }
     } catch (err) {

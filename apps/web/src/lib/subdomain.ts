@@ -29,21 +29,28 @@ export async function getOrganizationByDomain() {
     return null
   }
 
-  // Look up by custom domain first
+  // Look up by custom domain first via Domain model
   if (isCustomDomain && customDomain) {
-    const org = await db.organization.findFirst({
-      where: { customDomain },
+    const domain = await db.domain.findFirst({
+      where: {
+        domain: customDomain,
+        status: "VERIFIED",
+      },
       include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
+        organization: {
+          include: {
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+              },
+            },
           },
         },
       },
     })
-    return org
+    return domain?.organization || null
   }
 
   // Look up by slug (subdomain)

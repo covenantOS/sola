@@ -1,6 +1,7 @@
 import { getLogtoContext } from "@logto/next/server-actions"
 import { logtoConfig } from "@/lib/logto"
 import { getUserWithOrganization } from "@/lib/user-sync"
+import { db } from "@/lib/db"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { DomainForm } from "./domain-form"
@@ -14,6 +15,15 @@ export default async function DomainSettingsPage() {
   }
 
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "solaplus.ai"
+
+  // Get primary custom domain if any
+  const primaryDomain = await db.domain.findFirst({
+    where: {
+      organizationId: organization.id,
+      type: "CUSTOM",
+      isPrimary: true,
+    },
+  })
 
   return (
     <div className="space-y-8">
@@ -39,7 +49,7 @@ export default async function DomainSettingsPage() {
       <DomainForm
         organizationId={organization.id}
         currentSlug={organization.slug}
-        currentCustomDomain={organization.customDomain}
+        currentCustomDomain={primaryDomain?.domain || null}
         rootDomain={rootDomain}
       />
     </div>

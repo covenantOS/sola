@@ -36,7 +36,8 @@ interface Livestream {
   startedAt: Date | null
   endedAt: Date | null
   isPublic: boolean
-  livekitRoomName: string | null
+  muxLiveStreamId: string | null
+  muxStreamKey: string | null
   muxPlaybackId: string | null
 }
 
