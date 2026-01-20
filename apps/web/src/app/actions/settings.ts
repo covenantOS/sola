@@ -2,6 +2,12 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import {
+  addDomainToVercel,
+  removeDomainFromVercel,
+  checkDomainStatus,
+  verifyDomain,
+} from "@/lib/vercel"
 
 // Update user profile
 export async function updateProfile({
@@ -75,6 +81,12 @@ export async function updateNotificationSettings({
   }
 }
 
+// Reserved subdomains that can't be used by creators
+const RESERVED_SUBDOMAINS = [
+  "my", "app", "www", "api", "admin", "help", "docs", "blog", "status",
+  "mail", "ftp", "smtp", "pop", "imap", "cdn", "static", "assets",
+]
+
 // Update domain settings
 export async function updateDomainSettings({
   organizationId,
@@ -95,6 +107,11 @@ export async function updateDomainSettings({
       return { error: "Slug must be at least 3 characters" }
     }
 
+    // Check if slug is reserved
+    if (RESERVED_SUBDOMAINS.includes(slug.toLowerCase())) {
+      return { error: "This subdomain is reserved and cannot be used" }
+    }
+
     // Check if slug is already taken (by another org)
     const existingOrg = await db.organization.findFirst({
       where: {
@@ -107,18 +124,29 @@ export async function updateDomainSettings({
       return { error: "This subdomain is already taken" }
     }
 
-    // Validate custom domain format if provided
+    // Get current org to check for domain changes
+    const currentOrg = await db.organization.findUnique({
+      where: { id: organizationId },
+    })
+
+    if (!currentOrg) {
+      return { error: "Organization not found" }
+    }
+
+    let dnsInstructions = null
+
+    // Handle custom domain changes
     if (customDomain) {
       // Basic domain validation
       const domainRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/
-      if (!domainRegex.test(customDomain)) {
+      if (!domainRegex.test(customDomain.toLowerCase())) {
         return { error: "Invalid domain format" }
       }
 
       // Check if custom domain is already taken
       const existingDomain = await db.organization.findFirst({
         where: {
-          customDomain,
+          customDomain: customDomain.toLowerCase(),
           id: { not: organizationId },
         },
       })
@@ -126,21 +154,76 @@ export async function updateDomainSettings({
       if (existingDomain) {
         return { error: "This custom domain is already in use" }
       }
+
+      // If custom domain changed, add to Vercel
+      if (currentOrg.customDomain !== customDomain.toLowerCase()) {
+        // Remove old domain from Vercel if it exists
+        if (currentOrg.customDomain) {
+          await removeDomainFromVercel(currentOrg.customDomain)
+        }
+
+        // Add new domain to Vercel
+        const result = await addDomainToVercel(customDomain.toLowerCase())
+
+        if (!result.success) {
+          return { error: result.error || "Failed to configure custom domain" }
+        }
+
+        dnsInstructions = result.dnsInstructions
+      }
+    } else if (currentOrg.customDomain) {
+      // Custom domain was removed, remove from Vercel
+      await removeDomainFromVercel(currentOrg.customDomain)
     }
 
     await db.organization.update({
       where: { id: organizationId },
       data: {
         slug,
-        customDomain: customDomain || null,
+        customDomain: customDomain?.toLowerCase() || null,
       },
     })
 
     revalidatePath("/dashboard/settings")
-    return { success: true }
+    return {
+      success: true,
+      dnsInstructions,
+    }
   } catch (error) {
     console.error("Failed to update domain settings:", error)
     return { error: "Failed to update domain settings" }
+  }
+}
+
+// Check custom domain verification status
+export async function checkCustomDomainStatus(domain: string) {
+  try {
+    const status = await checkDomainStatus(domain)
+    return status
+  } catch (error) {
+    console.error("Failed to check domain status:", error)
+    return {
+      exists: false,
+      verified: false,
+      configured: false,
+      misconfigured: false,
+      error: "Failed to check domain status",
+    }
+  }
+}
+
+// Verify custom domain (trigger DNS check)
+export async function verifyCustomDomain(domain: string) {
+  try {
+    const result = await verifyDomain(domain)
+    return result
+  } catch (error) {
+    console.error("Failed to verify domain:", error)
+    return {
+      success: false,
+      verified: false,
+      error: "Failed to verify domain",
+    }
   }
 }
 

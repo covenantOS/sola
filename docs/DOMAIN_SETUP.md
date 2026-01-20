@@ -8,7 +8,7 @@
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  solaplus.ai                → Marketing site (separate)        │
-│  app.solaplus.ai            → Creator dashboard (login/manage) │
+│  my.solaplus.ai             → Creator dashboard (login/manage) │
 │  {slug}.solaplus.ai         → Creator's member site            │
 │                                                                 │
 │  Examples:                                                      │
@@ -36,7 +36,7 @@
 | Domain Type | Example | Points To | DNS Record |
 |-------------|---------|-----------|------------|
 | Marketing | `solaplus.ai` | Separate hosting | N/A |
-| Dashboard | `app.solaplus.ai` | Vercel | CNAME |
+| Dashboard | `my.solaplus.ai` | Vercel | CNAME |
 | Creator subdomain | `grace-church.solaplus.ai` | Vercel | Wildcard CNAME |
 | Custom domain | `theirdomain.com` | Vercel | A record or CNAME |
 | Custom subdomain | `community.theirdomain.com` | Vercel | CNAME |
@@ -48,7 +48,7 @@
 **⚠️ IMPORTANT: Get the correct target from Vercel**
 
 1. Go to [vercel.com](https://vercel.com) → Your Project → **Settings** → **Domains**
-2. Click **Add Domain** and enter `app.solaplus.ai`
+2. Click **Add Domain** and enter `my.solaplus.ai`
 3. Vercel will show you the **exact DNS configuration**
 
 Typically, Vercel shows:
@@ -76,10 +76,10 @@ Typically, Vercel shows:
 
 ### 2.3 Step-by-Step
 
-**Add `app` subdomain (for creator dashboard):**
+**Add `my` subdomain (for creator dashboard):**
 1. Click **Add Record**
 2. Type: `CNAME`
-3. Name: `app`
+3. Name: `my`
 4. Target: `cname.vercel-dns.com` (or whatever Vercel shows you)
 5. **Click the orange cloud → turn it GREY (DNS Only)**
 6. Click **Save**
@@ -97,7 +97,7 @@ Typically, Vercel shows:
 ```
 Type    Name    Content                  Proxy    TTL
 ─────────────────────────────────────────────────────
-CNAME   app     cname.vercel-dns.com     ☁️ DNS   Auto
+CNAME   my      cname.vercel-dns.com     ☁️ DNS   Auto
 CNAME   *       cname.vercel-dns.com     ☁️ DNS   Auto
 ```
 
@@ -112,11 +112,11 @@ CNAME   *       cname.vercel-dns.com     ☁️ DNS   Auto
 
 ## Step 3: Vercel Domain Configuration
 
-### 3.1 Add the App Domain
+### 3.1 Add the Dashboard Domain
 
 1. Go to Vercel → Your Project → **Settings** → **Domains**
 2. Click **Add**
-3. Enter: `app.solaplus.ai`
+3. Enter: `my.solaplus.ai`
 4. Click **Add**
 
 ### 3.2 Add the Wildcard Domain
@@ -129,7 +129,7 @@ CNAME   *       cname.vercel-dns.com     ☁️ DNS   Auto
 
 After a few minutes, you should see:
 ```
-✓ app.solaplus.ai      Valid Configuration
+✓ my.solaplus.ai       Valid Configuration
 ✓ *.solaplus.ai        Valid Configuration
 ```
 
@@ -147,7 +147,7 @@ NEXT_PUBLIC_ROOT_DOMAIN=solaplus.ai
 NEXT_PUBLIC_APP_SUBDOMAIN=app
 
 # Full app URL
-NEXT_PUBLIC_APP_URL=https://app.solaplus.ai
+NEXT_PUBLIC_APP_URL=https://my.solaplus.ai
 ```
 
 Then **redeploy** the app.
@@ -202,7 +202,7 @@ WHERE "slug" = 'their-slug';
 
 ### Test Dashboard
 ```
-https://app.solaplus.ai
+https://my.solaplus.ai
 → Should show login / creator dashboard
 ```
 
@@ -281,25 +281,25 @@ These subdomains are reserved and won't route to organizations:
 
 ```
 CLOUDFLARE
-□ CNAME "app" → cname.vercel-dns.com (DNS Only - grey cloud)
+□ CNAME "my" → cname.vercel-dns.com (DNS Only - grey cloud)
 □ CNAME "*" → cname.vercel-dns.com (DNS Only - grey cloud)
 
 VERCEL
-□ Domain "app.solaplus.ai" added
+□ Domain "my.solaplus.ai" added
 □ Wildcard "*.solaplus.ai" added
 □ Both show "Valid Configuration"
 
 ENVIRONMENT VARIABLES
 □ NEXT_PUBLIC_ROOT_DOMAIN=solaplus.ai
-□ NEXT_PUBLIC_APP_SUBDOMAIN=app
-□ NEXT_PUBLIC_APP_URL=https://app.solaplus.ai
+□ NEXT_PUBLIC_APP_SUBDOMAIN=my
+□ NEXT_PUBLIC_APP_URL=https://my.solaplus.ai
 
 DEPLOY
 □ Push latest code with updated middleware
 □ Wait for deployment to complete
 
 TEST
-□ https://app.solaplus.ai loads dashboard
+□ https://my.solaplus.ai loads dashboard
 □ https://{slug}.solaplus.ai loads org site
 □ https://fake.solaplus.ai shows 404
 □ localhost:3000?org=slug works for dev

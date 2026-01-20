@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server"
  * Domain Structure:
  * ─────────────────────────────────────────────────────────────
  * solaplus.ai              → Marketing (hosted elsewhere)
- * app.solaplus.ai          → Creator dashboard (this app's main)
+ * my.solaplus.ai           → Creator dashboard (login/manage)
  * {slug}.solaplus.ai       → Creator's member-facing site
  * theirdomain.com          → Creator's custom domain
  * sub.theirdomain.com      → Creator's custom subdomain
@@ -28,12 +28,13 @@ const PROTECTED_PATHS = [
 // Root domain (solaplus.ai)
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "solaplus.ai"
 
-// App subdomain (app.solaplus.ai) - where creators log in and manage
-const APP_SUBDOMAIN = process.env.NEXT_PUBLIC_APP_SUBDOMAIN || "app"
+// App subdomain (my.solaplus.ai) - where creators log in and manage
+const APP_SUBDOMAIN = process.env.NEXT_PUBLIC_APP_SUBDOMAIN || "my"
 
 // Reserved subdomains that shouldn't be used for organizations
 const RESERVED_SUBDOMAINS = [
-  "app",      // Creator dashboard
+  "my",       // Creator dashboard
+  "app",      // Alternate dashboard (future)
   "www",      // Redirect to root
   "api",      // API endpoints
   "admin",    // Admin panel (future)

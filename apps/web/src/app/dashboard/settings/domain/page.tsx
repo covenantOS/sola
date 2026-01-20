@@ -13,7 +13,7 @@ export default async function DomainSettingsPage() {
     return null
   }
 
-  const subdomainBase = process.env.NEXT_PUBLIC_SUBDOMAIN_BASE || "my.solaplus.ai"
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "solaplus.ai"
 
   return (
     <div className="space-y-8">
@@ -40,7 +40,7 @@ export default async function DomainSettingsPage() {
         organizationId={organization.id}
         currentSlug={organization.slug}
         currentCustomDomain={organization.customDomain}
-        subdomainBase={subdomainBase}
+        rootDomain={rootDomain}
       />
     </div>
   )
