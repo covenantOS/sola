@@ -7,13 +7,17 @@ interface OnboardingInput {
   userId: string
   displayName: string
   bio: string
+  avatar: string | null
   organizationName: string
   organizationDescription: string
   useCase: string
+  subdomain: string
   features: string[]
+  logo: string | null
   primaryColor: string
   communityName: string
   defaultChannels: string[]
+  freeTierName: string
 }
 
 function generateSlug(name: string): string {
@@ -24,22 +28,13 @@ function generateSlug(name: string): string {
     .substring(0, 50)
 }
 
-async function ensureUniqueSlug(baseSlug: string): Promise<string> {
-  let slug = baseSlug || "my-community"
-  let counter = 1
-
-  while (true) {
-    const existing = await db.organization.findUnique({
-      where: { slug },
-    })
-
-    if (!existing) {
-      return slug
-    }
-
-    slug = `${baseSlug}-${counter}`
-    counter++
-  }
+async function validateSubdomain(subdomain: string): Promise<boolean> {
+  // Check if subdomain is already taken
+  const existing = await db.organization.findUnique({
+    where: { slug: subdomain },
+    select: { id: true },
+  })
+  return !existing
 }
 
 const CHANNEL_TYPES: Record<string, "DISCUSSION" | "ANNOUNCEMENTS" | "EVENTS" | "RESOURCES"> = {
@@ -52,29 +47,34 @@ const CHANNEL_TYPES: Record<string, "DISCUSSION" | "ANNOUNCEMENTS" | "EVENTS" | 
 
 export async function completeOnboarding(input: OnboardingInput) {
   try {
-    // Update user profile
+    // Validate subdomain is still available
+    const isAvailable = await validateSubdomain(input.subdomain)
+    if (!isAvailable) {
+      return { error: "This subdomain is no longer available. Please choose another." }
+    }
+
+    // Update user profile with avatar
     const user = await db.user.update({
       where: { id: input.userId },
       data: {
         name: input.displayName,
+        ...(input.avatar && { avatar: input.avatar }),
       },
     })
 
-    // Generate unique slug
-    const baseSlug = generateSlug(input.organizationName)
-    const slug = await ensureUniqueSlug(baseSlug)
-
-    // Create organization with settings
+    // Create organization with settings including logo and branding
     const organization = await db.organization.create({
       data: {
         name: input.organizationName,
-        slug,
+        slug: input.subdomain, // Use the validated subdomain directly
         description: input.organizationDescription || null,
+        logo: input.logo,
         ownerId: input.userId,
         settings: {
           useCase: input.useCase,
           features: input.features,
           primaryColor: input.primaryColor,
+          logo: input.logo,
           onboardingComplete: true,
           showTour: true,
         },
@@ -91,6 +91,24 @@ export async function completeOnboarding(input: OnboardingInput) {
       },
     })
 
+    // Create default free membership tier
+    const freeTier = await db.membershipTier.create({
+      data: {
+        name: input.freeTierName,
+        description: `Free access to ${input.organizationName}`,
+        price: 0,
+        interval: "forever",
+        organizationId: organization.id,
+        position: 0,
+        isActive: true,
+        features: JSON.stringify([
+          "Access to community",
+          "Join discussions",
+          "View public content",
+        ]),
+      },
+    })
+
     // Create default community
     const community = await db.community.create({
       data: {
@@ -102,7 +120,7 @@ export async function completeOnboarding(input: OnboardingInput) {
       },
     })
 
-    // Create selected channels
+    // Create selected channels (accessible by free tier)
     const channelData = input.defaultChannels.map((channelSlug, index) => {
       const channelNames: Record<string, string> = {
         announcements: "Announcements",
@@ -119,6 +137,7 @@ export async function completeOnboarding(input: OnboardingInput) {
         communityId: community.id,
         isPublic: true,
         position: index,
+        accessTierIds: [freeTier.id], // Accessible by free tier
       }
     })
 
@@ -128,7 +147,7 @@ export async function completeOnboarding(input: OnboardingInput) {
 
     revalidatePath("/dashboard")
 
-    return { success: true, organization, community }
+    return { success: true, organization, community, freeTier }
   } catch (error) {
     console.error("Failed to complete onboarding:", error)
     return { error: "Failed to set up your organization. Please try again." }

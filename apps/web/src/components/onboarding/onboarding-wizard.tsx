@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -20,9 +20,13 @@ import {
   BookOpen,
   Video,
   MessageSquare,
+  Globe,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { completeOnboarding } from "@/app/actions/onboarding"
+import { ImageUpload } from "@/components/upload/image-upload"
 
 interface OnboardingWizardProps {
   userName?: string
@@ -38,19 +42,25 @@ interface OnboardingData {
   // Step 2: About You
   displayName: string
   bio: string
+  avatar: string | null
   // Step 3: Organization
   organizationName: string
   organizationDescription: string
   useCase: UseCase | null
+  subdomain: string
+  subdomainValid: boolean
   // Step 4: Features
   features: Feature[]
   // Step 5: Branding
+  logo: string | null
   primaryColor: string
   // Step 6: Stripe (handled separately)
   skipStripe: boolean
   // Step 7: Community
   communityName: string
   defaultChannels: string[]
+  // First tier
+  freeTierName: string
 }
 
 const STEPS = [
@@ -108,14 +118,19 @@ export function OnboardingWizard({ userName, userEmail, userId }: OnboardingWiza
   const [data, setData] = useState<OnboardingData>({
     displayName: userName || "",
     bio: "",
+    avatar: null,
     organizationName: "",
     organizationDescription: "",
     useCase: null,
+    subdomain: "",
+    subdomainValid: false,
     features: ["community"],
+    logo: null,
     primaryColor: "#D4A84B",
     skipStripe: false,
     communityName: "General",
     defaultChannels: ["announcements", "general"],
+    freeTierName: "Free",
   })
 
   const updateData = useCallback((updates: Partial<OnboardingData>) => {
@@ -129,7 +144,12 @@ export function OnboardingWizard({ userName, userEmail, userId }: OnboardingWiza
       case 1: // About
         return data.displayName.trim().length >= 2
       case 2: // Organization
-        return data.organizationName.trim().length >= 2 && data.useCase !== null
+        return (
+          data.organizationName.trim().length >= 2 &&
+          data.useCase !== null &&
+          data.subdomain.length >= 3 &&
+          data.subdomainValid
+        )
       case 3: // Features
         return data.features.length > 0
       case 4: // Branding
@@ -137,7 +157,7 @@ export function OnboardingWizard({ userName, userEmail, userId }: OnboardingWiza
       case 5: // Payments
         return true
       case 6: // Community
-        return data.communityName.trim().length >= 2
+        return data.communityName.trim().length >= 2 && data.freeTierName.trim().length >= 2
       case 7: // Complete
         return true
       default:
@@ -168,13 +188,17 @@ export function OnboardingWizard({ userName, userEmail, userId }: OnboardingWiza
         userId,
         displayName: data.displayName,
         bio: data.bio,
+        avatar: data.avatar,
         organizationName: data.organizationName,
         organizationDescription: data.organizationDescription,
         useCase: data.useCase!,
+        subdomain: data.subdomain,
         features: data.features,
+        logo: data.logo,
         primaryColor: data.primaryColor,
         communityName: data.communityName,
         defaultChannels: data.defaultChannels,
+        freeTierName: data.freeTierName,
       })
 
       if (result.error) {
@@ -438,6 +462,23 @@ function AboutStep({
       </p>
 
       <div className="space-y-6">
+        {/* Avatar Upload */}
+        <div>
+          <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+            Profile Photo <span className="text-white/40 normal-case">(optional)</span>
+          </label>
+          <div className="w-32 h-32">
+            <ImageUpload
+              value={data.avatar || undefined}
+              onChange={(url) => updateData({ avatar: url })}
+              folder="avatars"
+              aspectRatio="square"
+              placeholder="Upload photo"
+              maxSize={5}
+            />
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
             Display Name *
@@ -489,6 +530,64 @@ function OrganizationStep({
   data: OnboardingData
   updateData: (updates: Partial<OnboardingData>) => void
 }) {
+  const [subdomainChecking, setSubdomainChecking] = useState(false)
+  const [subdomainError, setSubdomainError] = useState<string | null>(null)
+
+  // Auto-generate subdomain from org name
+  useEffect(() => {
+    if (data.organizationName && !data.subdomain) {
+      const generated = data.organizationName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .substring(0, 50)
+      if (generated.length >= 3) {
+        updateData({ subdomain: generated })
+      }
+    }
+  }, [data.organizationName, data.subdomain, updateData])
+
+  // Check subdomain availability
+  useEffect(() => {
+    const checkSubdomain = async () => {
+      if (!data.subdomain || data.subdomain.length < 3) {
+        updateData({ subdomainValid: false })
+        setSubdomainError(null)
+        return
+      }
+
+      setSubdomainChecking(true)
+      setSubdomainError(null)
+
+      try {
+        const response = await fetch(`/api/subdomain/check?subdomain=${encodeURIComponent(data.subdomain)}`)
+        const result = await response.json()
+
+        if (result.available) {
+          updateData({ subdomainValid: true })
+          setSubdomainError(null)
+        } else {
+          updateData({ subdomainValid: false })
+          setSubdomainError(result.error || "Subdomain not available")
+        }
+      } catch {
+        updateData({ subdomainValid: false })
+        setSubdomainError("Could not check availability")
+      } finally {
+        setSubdomainChecking(false)
+      }
+    }
+
+    const debounce = setTimeout(checkSubdomain, 500)
+    return () => clearTimeout(debounce)
+  }, [data.subdomain, updateData])
+
+  const handleSubdomainChange = (value: string) => {
+    // Only allow lowercase letters, numbers, and hyphens
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, "")
+    updateData({ subdomain: cleaned, subdomainValid: false })
+  }
+
   return (
     <div>
       <h2 className="font-display text-3xl text-white uppercase tracking-tight mb-2">
@@ -510,6 +609,52 @@ function OrganizationStep({
             placeholder="Grace Community Church"
             className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors"
           />
+        </div>
+
+        {/* Subdomain Selection */}
+        <div>
+          <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+            Your URL *
+          </label>
+          <div className="flex items-center">
+            <input
+              type="text"
+              value={data.subdomain}
+              onChange={(e) => handleSubdomainChange(e.target.value)}
+              placeholder="your-community"
+              className={cn(
+                "flex-1 px-4 py-3 bg-white/5 border text-white placeholder:text-white/40 focus:outline-none transition-colors",
+                data.subdomainValid
+                  ? "border-green-500/50 focus:border-green-500"
+                  : subdomainError
+                    ? "border-sola-red/50 focus:border-sola-red"
+                    : "border-white/20 focus:border-sola-gold"
+              )}
+            />
+            <span className="px-4 py-3 bg-white/10 border border-l-0 border-white/20 text-white/60">
+              .solaplus.ai
+            </span>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            {subdomainChecking ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-white/60" />
+                <span className="text-white/60">Checking availability...</span>
+              </>
+            ) : data.subdomainValid ? (
+              <>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span className="text-green-500">Available!</span>
+              </>
+            ) : subdomainError ? (
+              <>
+                <XCircle className="h-4 w-4 text-sola-red" />
+                <span className="text-sola-red">{subdomainError}</span>
+              </>
+            ) : data.subdomain.length > 0 && data.subdomain.length < 3 ? (
+              <span className="text-white/40">Minimum 3 characters</span>
+            ) : null}
+          </div>
         </div>
 
         <div>
@@ -649,50 +794,80 @@ function BrandingStep({
         Customize Your Brand
       </h2>
       <p className="text-white/60 mb-8">
-        Choose a primary color for your platform. You can customize more later.
+        Upload your logo and choose your brand color. You can customize more later.
       </p>
 
-      <div>
-        <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-4">
-          Primary Color
-        </label>
-        <div className="grid grid-cols-4 gap-3">
-          {COLORS.map((color) => (
-            <button
-              key={color.value}
-              onClick={() => updateData({ primaryColor: color.value })}
-              className={cn(
-                "aspect-square border-2 transition-all duration-200 relative",
-                data.primaryColor === color.value
-                  ? "border-white scale-110"
-                  : "border-transparent hover:scale-105"
-              )}
-              style={{ backgroundColor: color.value }}
-            >
-              {data.primaryColor === color.value && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <Check className="h-6 w-6 text-white" />
-                </div>
-              )}
-            </button>
-          ))}
+      <div className="space-y-8">
+        {/* Logo Upload */}
+        <div>
+          <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-4">
+            Logo <span className="text-white/40 normal-case">(optional)</span>
+          </label>
+          <div className="flex items-start gap-6">
+            <div className="w-32 h-32">
+              <ImageUpload
+                value={data.logo || undefined}
+                onChange={(url) => updateData({ logo: url })}
+                folder="logos"
+                aspectRatio="square"
+                placeholder="Upload logo"
+                maxSize={5}
+              />
+            </div>
+            <div className="text-white/50 text-sm space-y-1">
+              <p>Recommended: 512x512px or larger</p>
+              <p>Square format works best</p>
+              <p>PNG or SVG with transparent background</p>
+            </div>
+          </div>
         </div>
-        <p className="text-white/40 text-sm mt-4">
-          Selected: {COLORS.find((c) => c.value === data.primaryColor)?.label}
-        </p>
-      </div>
 
-      {/* Preview */}
-      <div className="mt-8 p-6 bg-white/5 border border-white/10">
-        <p className="text-white/60 text-sm mb-4">Preview</p>
-        <div className="flex items-center gap-4">
-          <button
-            className="px-6 py-3 font-display font-semibold uppercase tracking-widest text-sm text-sola-black"
-            style={{ backgroundColor: data.primaryColor }}
-          >
-            Sample Button
-          </button>
-          <span style={{ color: data.primaryColor }}>Accent Text</span>
+        {/* Color Selection */}
+        <div>
+          <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-4">
+            Primary Color
+          </label>
+          <div className="grid grid-cols-4 gap-3">
+            {COLORS.map((color) => (
+              <button
+                key={color.value}
+                onClick={() => updateData({ primaryColor: color.value })}
+                className={cn(
+                  "aspect-square border-2 transition-all duration-200 relative",
+                  data.primaryColor === color.value
+                    ? "border-white scale-110"
+                    : "border-transparent hover:scale-105"
+                )}
+                style={{ backgroundColor: color.value }}
+              >
+                {data.primaryColor === color.value && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <Check className="h-6 w-6 text-white" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-white/40 text-sm mt-4">
+            Selected: {COLORS.find((c) => c.value === data.primaryColor)?.label}
+          </p>
+        </div>
+
+        {/* Preview */}
+        <div className="p-6 bg-white/5 border border-white/10">
+          <p className="text-white/60 text-sm mb-4">Preview</p>
+          <div className="flex items-center gap-4">
+            {data.logo && (
+              <img src={data.logo} alt="Logo" className="w-10 h-10 object-contain" />
+            )}
+            <button
+              className="px-6 py-3 font-display font-semibold uppercase tracking-widest text-sm text-sola-black"
+              style={{ backgroundColor: data.primaryColor }}
+            >
+              Sample Button
+            </button>
+            <span style={{ color: data.primaryColor }}>Accent Text</span>
+          </div>
         </div>
       </div>
     </div>
@@ -778,7 +953,7 @@ function CommunityStep({
         Set Up Your Community
       </h2>
       <p className="text-white/60 mb-8">
-        Create your first community and choose which channels to include.
+        Create your first community, membership tier, and choose channels.
       </p>
 
       <div className="space-y-6">
@@ -793,6 +968,23 @@ function CommunityStep({
             placeholder="General"
             className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors"
           />
+        </div>
+
+        {/* Free Tier */}
+        <div className="p-4 bg-white/5 border border-white/10">
+          <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+            First Membership Tier *
+          </label>
+          <input
+            type="text"
+            value={data.freeTierName}
+            onChange={(e) => updateData({ freeTierName: e.target.value })}
+            placeholder="Free"
+            className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors"
+          />
+          <p className="text-white/40 text-sm mt-2">
+            This will be your free tier. Anyone can join at this level. You can add paid tiers later.
+          </p>
         </div>
 
         <div>
@@ -847,13 +1039,26 @@ function CompleteStep({ data }: { data: OnboardingData }) {
       </p>
 
       <div className="bg-white/5 border border-white/10 p-6 text-left space-y-4 max-w-md mx-auto">
-        <div className="flex justify-between">
+        <div className="flex justify-between items-center">
           <span className="text-white/60">Organization</span>
-          <span className="text-white font-display">{data.organizationName}</span>
+          <div className="flex items-center gap-2">
+            {data.logo && (
+              <img src={data.logo} alt="Logo" className="w-6 h-6 object-contain" />
+            )}
+            <span className="text-white font-display">{data.organizationName}</span>
+          </div>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-white/60">Your URL</span>
+          <span className="text-sola-gold font-mono text-sm">{data.subdomain}.solaplus.ai</span>
         </div>
         <div className="flex justify-between">
           <span className="text-white/60">Community</span>
           <span className="text-white font-display">{data.communityName}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-white/60">Free Tier</span>
+          <span className="text-white">{data.freeTierName}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-white/60">Channels</span>
