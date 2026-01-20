@@ -1,281 +1,340 @@
 # Domain & Subdomain Setup Guide
 
-This guide explains how to configure Cloudflare and Vercel for Sola+ multi-tenant subdomains and custom domains.
-
-## Architecture Overview
+## Final Domain Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CLOUDFLARE                              │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  DNS Zone: solaplus.ai                                   │   │
-│  │                                                          │   │
-│  │  my.solaplus.ai          → CNAME → cname.vercel-dns.com │   │
-│  │  *.my.solaplus.ai        → CNAME → cname.vercel-dns.com │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                           VERCEL                                │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Project Domains:                                        │   │
-│  │    - my.solaplus.ai (primary)                           │   │
-│  │    - *.my.solaplus.ai (wildcard)                        │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      NEXT.JS MIDDLEWARE                         │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  my.solaplus.ai         → /dashboard (creator dashboard)│   │
-│  │  {slug}.my.solaplus.ai  → /org (member-facing site)     │   │
-│  │  custom.domain.com      → /org (via custom domain)      │   │
-│  └─────────────────────────────────────────────────────────┘   │
+│                    SOLA+ DOMAIN STRUCTURE                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  solaplus.ai                → Marketing site (separate)        │
+│  app.solaplus.ai            → Creator dashboard (login/manage) │
+│  {slug}.solaplus.ai         → Creator's member site            │
+│                                                                 │
+│  Examples:                                                      │
+│  ├── grace-church.solaplus.ai                                  │
+│  ├── pastor-john.solaplus.ai                                   │
+│  └── ministry-name.solaplus.ai                                 │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  CUSTOM DOMAINS (creator's own)                                 │
+│                                                                 │
+│  theirdomain.com            → Creator's member site            │
+│  community.theirdomain.com  → Creator's member site            │
+│  courses.theirdomain.com    → Creator's member site            │
+│                                                                 │
+│  All custom domains point to the same Vercel project           │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Step 1: Cloudflare DNS Configuration
+## Quick Reference
 
-### 1.1 Log into Cloudflare
+| Domain Type | Example | Points To | DNS Record |
+|-------------|---------|-----------|------------|
+| Marketing | `solaplus.ai` | Separate hosting | N/A |
+| Dashboard | `app.solaplus.ai` | Vercel | CNAME |
+| Creator subdomain | `grace-church.solaplus.ai` | Vercel | Wildcard CNAME |
+| Custom domain | `theirdomain.com` | Vercel | A record or CNAME |
+| Custom subdomain | `community.theirdomain.com` | Vercel | CNAME |
+
+---
+
+## Step 1: Find Your Vercel DNS Target
+
+**⚠️ IMPORTANT: Get the correct target from Vercel**
+
+1. Go to [vercel.com](https://vercel.com) → Your Project → **Settings** → **Domains**
+2. Click **Add Domain** and enter `app.solaplus.ai`
+3. Vercel will show you the **exact DNS configuration**
+
+Typically, Vercel shows:
+- **CNAME target:** `cname.vercel-dns.com`
+- **A record (for apex):** `76.76.21.21`
+
+**Screenshot what Vercel tells you - use THOSE values.**
+
+---
+
+## Step 2: Cloudflare DNS Configuration
+
+### 2.1 Log into Cloudflare
 
 1. Go to [dash.cloudflare.com](https://dash.cloudflare.com)
-2. Select your domain: `solaplus.ai`
-3. Click **DNS** in the left sidebar
+2. Select **solaplus.ai**
+3. Click **DNS** in the sidebar
 
-### 1.2 Add DNS Records
+### 2.2 Add These Records
 
-Add these records:
+| Type | Name | Target | Proxy Status |
+|------|------|--------|--------------|
+| CNAME | `app` | `cname.vercel-dns.com` | **DNS Only** (grey cloud) ☁️ |
+| CNAME | `*` | `cname.vercel-dns.com` | **DNS Only** (grey cloud) ☁️ |
 
-| Type  | Name | Target                  | Proxy Status | TTL  |
-|-------|------|-------------------------|--------------|------|
-| CNAME | my   | cname.vercel-dns.com    | DNS Only ☁️  | Auto |
-| CNAME | *.my | cname.vercel-dns.com    | DNS Only ☁️  | Auto |
+### 2.3 Step-by-Step
 
-**CRITICAL: Set Proxy Status to "DNS Only" (grey cloud)**
-
-The orange cloud (Proxied) will break SSL certificate provisioning. Vercel needs to handle SSL directly.
-
-### 1.3 How to Add Records
-
+**Add `app` subdomain (for creator dashboard):**
 1. Click **Add Record**
-2. For the main subdomain:
-   - Type: `CNAME`
-   - Name: `my`
-   - Target: `cname.vercel-dns.com`
-   - Proxy status: Click the orange cloud to turn it **grey** (DNS Only)
-   - Click **Save**
+2. Type: `CNAME`
+3. Name: `app`
+4. Target: `cname.vercel-dns.com` (or whatever Vercel shows you)
+5. **Click the orange cloud → turn it GREY (DNS Only)**
+6. Click **Save**
 
-3. For the wildcard:
-   - Type: `CNAME`
-   - Name: `*.my`
-   - Target: `cname.vercel-dns.com`
-   - Proxy status: **DNS Only** (grey cloud)
-   - Click **Save**
+**Add wildcard (for all creator subdomains):**
+1. Click **Add Record**
+2. Type: `CNAME`
+3. Name: `*`
+4. Target: `cname.vercel-dns.com` (or whatever Vercel shows you)
+5. **Click the orange cloud → turn it GREY (DNS Only)**
+6. Click **Save**
 
-### 1.4 Verify DNS Records
-
-After adding, your DNS section should look like:
+### 2.4 Your DNS Should Look Like This
 
 ```
-Type   Name    Content               Proxy  TTL
-CNAME  my      cname.vercel-dns.com  ☁️     Auto
-CNAME  *.my    cname.vercel-dns.com  ☁️     Auto
+Type    Name    Content                  Proxy    TTL
+─────────────────────────────────────────────────────
+CNAME   app     cname.vercel-dns.com     ☁️ DNS   Auto
+CNAME   *       cname.vercel-dns.com     ☁️ DNS   Auto
 ```
+
+### ⚠️ Why DNS Only (Grey Cloud)?
+
+**The grey cloud is REQUIRED because:**
+- Vercel needs to provision SSL certificates
+- Orange cloud (Proxied) blocks Vercel's SSL process
+- Wildcard certificates require direct DNS validation
 
 ---
 
-## Step 2: Vercel Configuration
+## Step 3: Vercel Domain Configuration
 
-### 2.1 Add Domains to Your Project
+### 3.1 Add the App Domain
 
-1. Go to [vercel.com/dashboard](https://vercel.com/dashboard)
-2. Select your project: `sola`
-3. Go to **Settings** → **Domains**
+1. Go to Vercel → Your Project → **Settings** → **Domains**
+2. Click **Add**
+3. Enter: `app.solaplus.ai`
+4. Click **Add**
 
-### 2.2 Add the Main Domain
+### 3.2 Add the Wildcard Domain
 
-1. Click **Add Domain**
-2. Enter: `my.solaplus.ai`
+1. Click **Add** again
+2. Enter: `*.solaplus.ai`
 3. Click **Add**
-4. Vercel will show a verification step - it should auto-verify since DNS is configured
 
-### 2.3 Add the Wildcard Domain
+### 3.3 Verify Both Are Valid
 
-1. Click **Add Domain** again
-2. Enter: `*.my.solaplus.ai`
-3. Click **Add**
-4. This enables all subdomains like `grace-church.my.solaplus.ai`
-
-### 2.4 SSL Certificates
-
-Vercel automatically provisions SSL certificates for:
-- `my.solaplus.ai`
-- `*.my.solaplus.ai` (wildcard certificate)
-
-This may take 5-15 minutes after DNS propagation.
-
-### 2.5 Verify in Vercel
-
-Your Domains page should show:
-
+After a few minutes, you should see:
 ```
-Domain                  Status
-my.solaplus.ai         ✓ Valid Configuration
-*.my.solaplus.ai       ✓ Valid Configuration
+✓ app.solaplus.ai      Valid Configuration
+✓ *.solaplus.ai        Valid Configuration
 ```
 
 ---
 
-## Step 3: Environment Variables
+## Step 4: Environment Variables
 
-### 3.1 Set in Vercel
+In Vercel → **Settings** → **Environment Variables**, set:
 
-Go to **Settings** → **Environment Variables** and ensure:
+```env
+# Root domain (without subdomain)
+NEXT_PUBLIC_ROOT_DOMAIN=solaplus.ai
 
+# App subdomain (where creators log in)
+NEXT_PUBLIC_APP_SUBDOMAIN=app
+
+# Full app URL
+NEXT_PUBLIC_APP_URL=https://app.solaplus.ai
 ```
-NEXT_PUBLIC_SUBDOMAIN_BASE=my.solaplus.ai
-NEXT_PUBLIC_APP_URL=https://my.solaplus.ai
+
+Then **redeploy** the app.
+
+---
+
+## Step 5: Custom Domain Setup
+
+When a creator wants their own domain:
+
+### Option A: Apex Domain (theirdomain.com)
+
+**Creator does this in their DNS:**
+```
+Type: A
+Name: @ (or blank)
+Value: 76.76.21.21   ← Vercel's IP address
 ```
 
-### 3.2 Redeploy
+**You do this in Vercel:**
+1. Go to Vercel → Domains → **Add**
+2. Enter: `theirdomain.com`
+3. Vercel provisions SSL automatically
 
-After adding environment variables, redeploy your application:
+### Option B: Subdomain (community.theirdomain.com)
 
-```bash
-# Push any change or trigger manual redeploy
-git commit --allow-empty -m "Trigger redeploy"
-git push
+**Creator does this in their DNS:**
+```
+Type: CNAME
+Name: community
+Value: cname.vercel-dns.com
+```
+
+**You do this in Vercel:**
+1. Go to Vercel → Domains → **Add**
+2. Enter: `community.theirdomain.com`
+3. Vercel provisions SSL automatically
+
+### Database Update
+
+When a creator configures a custom domain in settings, update their organization:
+
+```sql
+UPDATE "Organization"
+SET "customDomain" = 'theirdomain.com'
+WHERE "slug" = 'their-slug';
 ```
 
 ---
 
-## Step 4: Custom Domain Setup (For Creators)
+## Step 6: Testing
 
-When a creator wants to use their own domain (e.g., `community.graceChurch.com`):
+### Test Dashboard
+```
+https://app.solaplus.ai
+→ Should show login / creator dashboard
+```
 
-### 4.1 Creator's Steps (shown in Domain Settings page)
+### Test Creator Subdomain
+```
+https://grace-church.solaplus.ai
+→ Should show that org's member site
+→ (Requires org with slug "grace-church" in database)
+```
 
-The creator adds a CNAME record in their DNS:
+### Test 404
+```
+https://nonexistent-org.solaplus.ai
+→ Should show "Community Not Found"
+```
 
-| Type  | Name      | Target           |
-|-------|-----------|------------------|
-| CNAME | community | my.solaplus.ai   |
+### Test Custom Domain
+```
+https://theirdomain.com
+→ Should show that org's member site
+→ (Requires customDomain set in database)
+```
 
-### 4.2 Your Steps (Add to Vercel)
-
-1. Go to Vercel → Settings → Domains
-2. Add their custom domain: `community.gracechurch.com`
-3. Vercel will provision SSL automatically
-
-### 4.3 Automation (Future)
-
-For automation, use the Vercel API:
-
-```javascript
-// Add domain via Vercel API
-const response = await fetch(
-  `https://api.vercel.com/v10/projects/${projectId}/domains`,
-  {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name: 'community.gracechurch.com',
-    }),
-  }
-)
+### Local Development
+```
+http://localhost:3000?org=grace-church
+→ Simulates grace-church.solaplus.ai
 ```
 
 ---
 
-## Step 5: Testing
+## Reserved Subdomains
 
-### 5.1 Test Main Domain
+These subdomains are reserved and won't route to organizations:
 
-1. Visit `https://my.solaplus.ai`
-2. Should show the login page / dashboard
-
-### 5.2 Test Subdomain
-
-1. Create an organization with slug `test-org`
-2. Visit `https://test-org.my.solaplus.ai`
-3. Should show the organization's member-facing page
-
-### 5.3 Test 404
-
-1. Visit `https://nonexistent.my.solaplus.ai`
-2. Should show "Community Not Found" page
+| Subdomain | Purpose |
+|-----------|---------|
+| `app` | Creator dashboard |
+| `www` | Redirect to root |
+| `api` | API endpoints |
+| `admin` | Admin panel |
+| `help` | Help center |
+| `docs` | Documentation |
+| `blog` | Blog |
+| `status` | Status page |
 
 ---
 
 ## Troubleshooting
 
-### SSL Certificate Issues
+### "This site can't be reached"
+- DNS hasn't propagated yet (wait 5-60 minutes)
+- Check at [dnschecker.org](https://dnschecker.org)
 
-**Problem:** Browser shows "Connection not secure"
+### "Connection not secure" / SSL Error
+- Cloudflare proxy is ON (orange cloud) → Turn it OFF (grey)
+- Wait 15-30 minutes for Vercel to provision certificate
 
-**Solution:**
-1. Ensure Cloudflare proxy is OFF (grey cloud)
-2. Wait 15-30 minutes for certificate provisioning
-3. Check Vercel Domains page for certificate status
+### Subdomain shows wrong content
+- Verify org exists in database with matching slug
+- Check middleware is deployed
+- Clear browser cache
 
-### Subdomain Not Working
+### Custom domain not working
+- Verify DNS points to Vercel (CNAME or A record)
+- Add domain to Vercel project
+- Set `customDomain` in organization's database record
 
-**Problem:** `{slug}.my.solaplus.ai` shows 404 or wrong content
-
-**Solution:**
-1. Verify wildcard DNS record exists: `*.my`
-2. Check Vercel has wildcard domain: `*.my.solaplus.ai`
-3. Ensure middleware is deployed (check /src/middleware.ts)
-4. Check organization slug matches URL exactly
-
-### Custom Domain Not Working
-
-**Problem:** Creator's custom domain not loading
-
-**Solution:**
-1. Verify CNAME points to `my.solaplus.ai`
-2. Add the domain to Vercel project
-3. Check `customDomain` field is set in organization database
-4. DNS propagation can take up to 24 hours
-
-### Cloudflare SSL Mode
-
-If you're using Cloudflare's proxy (orange cloud), set SSL mode:
-
-1. Go to Cloudflare → SSL/TLS
-2. Set mode to **Full (strict)**
-
-However, we recommend **DNS Only** mode for simpler setup.
+### Vercel says "Invalid Configuration"
+- DNS record doesn't match what Vercel expects
+- Check the exact value Vercel shows when adding the domain
 
 ---
 
-## DNS Propagation
+## Complete Checklist
 
-DNS changes can take time to propagate:
+```
+CLOUDFLARE
+□ CNAME "app" → cname.vercel-dns.com (DNS Only - grey cloud)
+□ CNAME "*" → cname.vercel-dns.com (DNS Only - grey cloud)
 
-- **Cloudflare internal:** 1-5 minutes
-- **Global propagation:** Up to 24-48 hours (usually faster)
+VERCEL
+□ Domain "app.solaplus.ai" added
+□ Wildcard "*.solaplus.ai" added
+□ Both show "Valid Configuration"
 
-Check propagation status at:
-- [dnschecker.org](https://dnschecker.org)
-- [whatsmydns.net](https://whatsmydns.net)
+ENVIRONMENT VARIABLES
+□ NEXT_PUBLIC_ROOT_DOMAIN=solaplus.ai
+□ NEXT_PUBLIC_APP_SUBDOMAIN=app
+□ NEXT_PUBLIC_APP_URL=https://app.solaplus.ai
+
+DEPLOY
+□ Push latest code with updated middleware
+□ Wait for deployment to complete
+
+TEST
+□ https://app.solaplus.ai loads dashboard
+□ https://{slug}.solaplus.ai loads org site
+□ https://fake.solaplus.ai shows 404
+□ localhost:3000?org=slug works for dev
+
+CUSTOM DOMAINS (as needed)
+□ Creator adds DNS record pointing to Vercel
+□ You add domain to Vercel project
+□ Set customDomain in database
+```
 
 ---
 
-## Summary Checklist
+## API Automation (Future)
 
-- [ ] Cloudflare: Add CNAME `my` → `cname.vercel-dns.com` (DNS Only)
-- [ ] Cloudflare: Add CNAME `*.my` → `cname.vercel-dns.com` (DNS Only)
-- [ ] Vercel: Add domain `my.solaplus.ai`
-- [ ] Vercel: Add wildcard `*.my.solaplus.ai`
-- [ ] Environment: Set `NEXT_PUBLIC_SUBDOMAIN_BASE=my.solaplus.ai`
-- [ ] Deploy: Redeploy application
-- [ ] Test: Visit `https://my.solaplus.ai`
-- [ ] Test: Visit `https://{your-slug}.my.solaplus.ai`
+Automate custom domain setup with Vercel API:
+
+```typescript
+// Add a custom domain to Vercel
+async function addDomainToVercel(domain: string) {
+  const response = await fetch(
+    `https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/domains`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${VERCEL_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: domain }),
+    }
+  )
+  return response.json()
+}
+
+// Call this when creator saves custom domain in settings
+await addDomainToVercel('theirdomain.com')
+```
+
+Get your Vercel token at: https://vercel.com/account/tokens

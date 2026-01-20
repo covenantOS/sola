@@ -4,10 +4,14 @@ import type { NextRequest } from "next/server"
 /**
  * Subdomain Routing Middleware
  *
- * This handles routing for:
- * 1. Main app: my.solaplus.ai (no subdomain)
- * 2. Creator sites: {slug}.my.solaplus.ai
- * 3. Custom domains: community.yourdomain.com
+ * Domain Structure:
+ * ─────────────────────────────────────────────────────────────
+ * solaplus.ai              → Marketing (hosted elsewhere)
+ * app.solaplus.ai          → Creator dashboard (this app's main)
+ * {slug}.solaplus.ai       → Creator's member-facing site
+ * theirdomain.com          → Creator's custom domain
+ * sub.theirdomain.com      → Creator's custom subdomain
+ * ─────────────────────────────────────────────────────────────
  */
 
 // Routes that should never be rewritten (API, static, etc.)
@@ -21,8 +25,23 @@ const PROTECTED_PATHS = [
   "/sitemap.xml",
 ]
 
-// The base domain (without subdomain)
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_SUBDOMAIN_BASE || "my.solaplus.ai"
+// Root domain (solaplus.ai)
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "solaplus.ai"
+
+// App subdomain (app.solaplus.ai) - where creators log in and manage
+const APP_SUBDOMAIN = process.env.NEXT_PUBLIC_APP_SUBDOMAIN || "app"
+
+// Reserved subdomains that shouldn't be used for organizations
+const RESERVED_SUBDOMAINS = [
+  "app",      // Creator dashboard
+  "www",      // Redirect to root
+  "api",      // API endpoints
+  "admin",    // Admin panel (future)
+  "help",     // Help center (future)
+  "docs",     // Documentation (future)
+  "blog",     // Blog (future)
+  "status",   // Status page (future)
+]
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
@@ -34,34 +53,60 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get subdomain by removing the root domain
-  // e.g., "creator.my.solaplus.ai" -> "creator"
-  // e.g., "my.solaplus.ai" -> "" (root)
-  let subdomain = ""
-  let isCustomDomain = false
-
-  if (hostname.endsWith(ROOT_DOMAIN)) {
-    // This is a subdomain of our main domain
-    const parts = hostname.replace(`.${ROOT_DOMAIN}`, "").split(".")
-    subdomain = parts[0] === ROOT_DOMAIN.split(".")[0] ? "" : parts[0]
-  } else if (!hostname.includes("localhost")) {
-    // This is a custom domain
-    isCustomDomain = true
-    subdomain = hostname // We'll look up the org by custom domain
-  }
-
-  // If no subdomain and not custom domain, this is the main app
-  if (!subdomain && !isCustomDomain) {
+  // Handle localhost for development
+  if (hostname.includes("localhost") || hostname.includes("127.0.0.1")) {
+    // In development, use query param ?org=slug to simulate subdomain
+    const orgSlug = url.searchParams.get("org")
+    if (orgSlug) {
+      const response = NextResponse.rewrite(
+        new URL(`/org${pathname === "/" ? "" : pathname}`, request.url)
+      )
+      response.headers.set("x-subdomain", orgSlug)
+      response.headers.set("x-custom-domain", "")
+      response.headers.set("x-original-host", hostname)
+      return response
+    }
     return NextResponse.next()
   }
 
+  let subdomain = ""
+  let isCustomDomain = false
+
+  // Check if this is our domain (solaplus.ai or *.solaplus.ai)
+  if (hostname === ROOT_DOMAIN || hostname.endsWith(`.${ROOT_DOMAIN}`)) {
+    // Extract subdomain: "grace-church.solaplus.ai" → "grace-church"
+    if (hostname === ROOT_DOMAIN) {
+      // Root domain (solaplus.ai) - this should redirect to marketing
+      // or be handled by a different deployment
+      return NextResponse.next()
+    }
+
+    // Get the subdomain part
+    subdomain = hostname.replace(`.${ROOT_DOMAIN}`, "")
+
+    // Check if it's the app subdomain (app.solaplus.ai)
+    if (subdomain === APP_SUBDOMAIN) {
+      // This is the creator dashboard - don't rewrite
+      return NextResponse.next()
+    }
+
+    // Check if it's a reserved subdomain
+    if (RESERVED_SUBDOMAINS.includes(subdomain.toLowerCase())) {
+      return NextResponse.next()
+    }
+
+    // It's a creator subdomain (e.g., grace-church.solaplus.ai)
+  } else {
+    // This is a custom domain (e.g., theirdomain.com or courses.theirdomain.com)
+    isCustomDomain = true
+  }
+
   // For subdomains/custom domains, rewrite to the organization-specific pages
-  // Store the subdomain/domain info in headers for server components to access
   const response = NextResponse.rewrite(
     new URL(`/org${pathname === "/" ? "" : pathname}`, request.url)
   )
 
-  // Pass subdomain info to the app
+  // Pass domain info to the app via headers
   response.headers.set("x-subdomain", subdomain)
   response.headers.set("x-custom-domain", isCustomDomain ? hostname : "")
   response.headers.set("x-original-host", hostname)
