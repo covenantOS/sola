@@ -81,9 +81,6 @@ model Organization {
   // Settings
   settings Json @default("{}")
 
-  // Custom domain (future)
-  customDomain String? @unique
-
   // Relations
   memberships   Membership[]
   tiers         MembershipTier[]
@@ -93,11 +90,57 @@ model Organization {
   media         Media[]
   webhooks      Webhook[]
   apiKeys       ApiKey[]
+  domains       Domain[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([slug])
+}
+
+// ==================== DOMAINS ====================
+
+model Domain {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  domain         String       @unique
+  type           DomainType   @default(CUSTOM)
+  status         DomainStatus @default(PENDING)
+
+  // What this domain points to
+  targetType     DomainTarget @default(COMMUNITY)
+  targetId       String?      // e.g., courseId if pointing to a specific course
+
+  // Verification
+  verificationToken String?
+  verifiedAt       DateTime?
+
+  isPrimary Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([domain])
+}
+
+enum DomainType {
+  SUBDOMAIN  // auto-created {slug}.solaplus.ai
+  CUSTOM     // user imports their own domain
+}
+
+enum DomainStatus {
+  PENDING
+  VERIFIED
+  ERROR
+}
+
+enum DomainTarget {
+  COMMUNITY
+  COURSE
+  WEBSITE
 }
 
 model MembershipTier {
@@ -487,13 +530,14 @@ model Livestream {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  // LiveKit
-  livekitRoomName String?  @unique
-  livekitRoomId   String?
+  // Mux Live
+  muxLiveStreamId  String?  @unique  // Mux live stream ID
+  muxStreamKey     String?           // RTMP stream key
+  muxPlaybackId    String?           // Live playback ID
 
   // Recording (Mux)
-  muxAssetId    String?
-  muxPlaybackId String?
+  muxAssetId         String?  // Recorded video asset ID
+  recordingPlaybackId String? // Playback ID for recording
 
   status LivestreamStatus @default(SCHEDULED)
 

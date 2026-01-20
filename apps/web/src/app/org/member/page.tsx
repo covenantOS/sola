@@ -12,6 +12,12 @@ export default async function MemberDashboard() {
 
   if (!member || !org) return null
 
+  // Get full user data to check createdAt
+  const user = await db.user.findUnique({
+    where: { id: member.id },
+    select: { createdAt: true },
+  })
+
   // Get membership with tier
   const membership = await db.membership.findUnique({
     where: {
@@ -26,6 +32,11 @@ export default async function MemberDashboard() {
   })
 
   if (!membership) return null
+
+  // Check if user was created within the last 60 seconds (new user)
+  const isNewUser = user?.createdAt
+    ? new Date().getTime() - new Date(user.createdAt).getTime() < 60000
+    : false
 
   const memberTierIds = membership.tierId ? [membership.tierId] : []
 
@@ -102,6 +113,7 @@ export default async function MemberDashboard() {
         select: {
           id: true,
           name: true,
+          slug: true,
           community: {
             select: { name: true },
           },
@@ -120,10 +132,14 @@ export default async function MemberDashboard() {
       {/* Welcome */}
       <div>
         <h1 className="font-display text-3xl text-white uppercase tracking-tight">
-          Welcome back, {member.name || "Member"}!
+          {isNewUser
+            ? `Welcome to ${org.name}!`
+            : `Welcome back, ${member.name || "Member"}!`}
         </h1>
         <p className="text-white/60 mt-2">
-          Here&apos;s what&apos;s happening in {org.name}
+          {isNewUser
+            ? "We're excited to have you here. Let's explore what's available."
+            : `Here's what's happening in ${org.name}`}
         </p>
       </div>
 
@@ -196,7 +212,7 @@ export default async function MemberDashboard() {
                   Recent Activity
                 </h2>
                 <Link
-                  href="/member/community"
+                  href="/community"
                   className="text-sm flex items-center gap-1 hover:gap-2 transition-all"
                   style={{ color: primaryColor }}
                 >
@@ -207,7 +223,7 @@ export default async function MemberDashboard() {
                 {recentPosts.map((post) => (
                   <Link
                     key={post.id}
-                    href={`/member/community/${post.channel?.community?.name?.toLowerCase()}/${post.channelId}`}
+                    href={`/community/${post.channel?.slug || post.channelId}`}
                     className="block bg-white/5 border border-white/10 p-4 hover:border-white/30 transition-colors"
                   >
                     <div className="flex items-center gap-3 mb-2">
@@ -261,7 +277,7 @@ export default async function MemberDashboard() {
             <div className="space-y-2">
               {enabledFeatures.includes("community") && communities.length > 0 && (
                 <Link
-                  href="/member/community"
+                  href="/community"
                   className="flex items-center gap-3 p-3 text-white/60 hover:text-white hover:bg-white/5 transition-colors"
                 >
                   <Users className="h-5 w-5" />

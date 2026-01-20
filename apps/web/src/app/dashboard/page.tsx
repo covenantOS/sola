@@ -38,7 +38,7 @@ async function getDashboardStats(organizationId: string) {
 export default async function DashboardPage() {
   const { claims } = await getLogtoContext(logtoConfig)
   const userName = (claims?.name as string) || "Creator"
-  const { organization } = await getUserWithOrganization(claims?.sub || "")
+  const { user, organization } = await getUserWithOrganization(claims?.sub || "")
 
   const stats = organization
     ? await getDashboardStats(organization.id)
@@ -46,15 +46,26 @@ export default async function DashboardPage() {
 
   const isStripeConnected = organization?.stripeOnboardingComplete
 
+  // Check if user was created within the last 60 seconds (new user)
+  const isNewUser = user?.createdAt
+    ? new Date().getTime() - new Date(user.createdAt).getTime() < 60000
+    : false
+
+  const welcomeMessage = isNewUser
+    ? `Welcome to ${organization?.name || "Sola+"}!`
+    : `Welcome back, ${userName}`
+
   return (
     <div className="space-y-8">
       {/* Welcome section */}
       <div data-tour="dashboard-welcome">
         <h2 className="font-display text-3xl md:text-4xl text-white uppercase tracking-tight">
-          Welcome back, {userName}
+          {welcomeMessage}
         </h2>
         <p className="text-white/60 mt-2">
-          Here&apos;s what&apos;s happening with your community today.
+          {isNewUser
+            ? "Let's get your community set up."
+            : "Here's what's happening with your community today."}
         </p>
       </div>
 

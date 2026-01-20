@@ -42,9 +42,9 @@ const settingsLinks = [
     icon: Shield,
   },
   {
-    name: "Domain",
-    description: "Set up a custom domain for your site",
-    href: "/dashboard/settings/domain",
+    name: "Domains",
+    description: "Manage custom domains for your community",
+    href: "/dashboard/domains",
     icon: Globe,
   },
   {
@@ -102,7 +102,7 @@ export default async function SettingsPage() {
               {organization.stripeOnboardingComplete ? (
                 <>
                   <p className="text-green-400 mt-1">
-                    Your site is live and ready to accept members!
+                    Your community page is live and ready to accept members!
                   </p>
                   <div className="mt-4">
                     <a
@@ -111,7 +111,7 @@ export default async function SettingsPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-sm text-sola-gold hover:text-sola-gold/80 transition-colors"
                     >
-                      Visit your site
+                      Visit your community
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </div>
@@ -119,10 +119,10 @@ export default async function SettingsPage() {
               ) : (
                 <>
                   <p className="text-orange-400 mt-1">
-                    Complete Stripe setup to launch your site
+                    Complete Stripe setup to launch your community
                   </p>
                   <p className="text-white/60 text-sm mt-2">
-                    Your member site is showing a "Coming Soon" page until you connect
+                    Your community page is showing a "Coming Soon" page until you connect
                     Stripe to accept payments.
                   </p>
                   <div className="mt-4">
