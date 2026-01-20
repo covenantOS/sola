@@ -129,10 +129,10 @@ export default async function Home() {
                 <Zap className="w-7 h-7 text-sola-gold" />
               </div>
               <h3 className="font-display text-xl text-white uppercase tracking-wide mb-3">
-                Direct Payments
+                Zero Platform Fees
               </h3>
               <p className="text-white/60">
-                Money goes straight to your bank. No platform fees eating your support. Just Stripe&apos;s standard rate.
+                Keep 100% of your earnings. We don&apos;t take any cut. Only Stripe&apos;s standard processing fees apply.
               </p>
             </div>
 

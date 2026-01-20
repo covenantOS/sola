@@ -730,7 +730,7 @@ function PaymentsStep({
               <ul className="text-white/60 text-sm space-y-1 mb-4">
                 <li>• Accept credit cards and bank transfers</li>
                 <li>• Automatic payouts to your bank account</li>
-                <li>• Only 5% platform fee + Stripe fees</li>
+                <li>• No platform fees — 100% yours (only Stripe fees)</li>
                 <li>• No monthly fees or hidden charges</li>
               </ul>
               <button

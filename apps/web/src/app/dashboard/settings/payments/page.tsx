@@ -64,16 +64,33 @@ export default async function PaymentsSettingsPage() {
         <h2 className="font-display text-lg text-white uppercase tracking-wide mb-4">
           Platform Fee
         </h2>
-        <div className="flex items-baseline gap-2">
-          <span className="font-display text-4xl text-sola-gold">
-            {process.env.PLATFORM_FEE_PERCENT || "5"}%
-          </span>
-          <span className="text-white/60">of each transaction</span>
-        </div>
-        <p className="text-sm text-white/40 mt-4">
-          Sola+ charges a small platform fee on each transaction. Stripe&apos;s
-          processing fees (2.9% + $0.30) are charged separately by Stripe.
-        </p>
+        {(process.env.PLATFORM_FEE_PERCENT || "0") === "0" ? (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-4xl text-sola-gold">
+                0%
+              </span>
+              <span className="text-white/60">— No platform fee!</span>
+            </div>
+            <p className="text-sm text-white/40 mt-4">
+              Sola+ doesn&apos;t take any cut. 100% of your earnings go directly to
+              you. Only Stripe&apos;s standard processing fees (2.9% + $0.30) apply.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-4xl text-sola-gold">
+                {process.env.PLATFORM_FEE_PERCENT}%
+              </span>
+              <span className="text-white/60">of each transaction</span>
+            </div>
+            <p className="text-sm text-white/40 mt-4">
+              Sola+ charges a small platform fee on each transaction. Stripe&apos;s
+              processing fees (2.9% + $0.30) are charged separately by Stripe.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Payout Info */}
