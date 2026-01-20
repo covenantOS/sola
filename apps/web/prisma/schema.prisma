@@ -18,12 +18,18 @@ model User {
   email         String    @unique
   name          String?
   avatar        String?
-  logtoId       String?   @unique // Logto user ID
+  logtoId       String?   @unique // Logto user ID (for creators)
   emailVerified DateTime?
+
+  // Member auth (simple email/password for members)
+  passwordHash  String?   // Hashed password for member auth
+  isCreator     Boolean   @default(false) // true = creator (uses Logto), false = member
+  lastLoginAt   DateTime?
 
   // Relations
   ownedOrganizations Organization[] @relation("OrganizationOwner")
   memberships        Membership[]
+  sessions           Session[]      // Member sessions
   posts              Post[]
   comments           Comment[]
   reactions          Reaction[]
@@ -34,6 +40,23 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Member session for email/password auth
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+
+  userAgent String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
 }
 
 // ==================== MULTI-TENANCY ====================
