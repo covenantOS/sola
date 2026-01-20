@@ -24,10 +24,20 @@ export default async function OrgHomePage() {
 
   // Get org settings with appearance
   const settings = (org.settings as Record<string, unknown>) || {}
-  const primaryColor = (settings.primaryColor as string) || "#D4A84B"
+  const appearance = (settings.appearance as Record<string, unknown>) || {}
+
+  // Use appearance settings or fallback to org/default values
+  const primaryColor = (appearance.primaryColor as string) || (settings.primaryColor as string) || "#D4A84B"
   const heroLayout = (settings.heroLayout as string) || "centered"
   const showStats = settings.showStats !== false
-  const showTestimonials = settings.showTestimonials !== false
+  const showAbout = appearance.showAbout !== false
+  const showTiers = appearance.showTiers !== false
+  const showCourses = appearance.showCourses !== false
+
+  // Hero content - prefer appearance settings over org defaults
+  const heroTitle = (appearance.heroTitle as string) || org.name
+  const heroSubtitle = (appearance.heroSubtitle as string) || org.description || ""
+  const heroImage = (appearance.heroImage as string) || org.banner || ""
 
   // Get tiers
   const tiers = await db.membershipTier.findMany({
@@ -75,14 +85,14 @@ export default async function OrgHomePage() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative min-h-[80vh] flex items-center overflow-hidden">
-        {/* Animated background */}
+        {/* Background */}
         <div className="absolute inset-0">
-          {org.banner ? (
+          {heroImage ? (
             <>
               <img
-                src={org.banner}
+                src={heroImage}
                 alt=""
-                className="w-full h-full object-cover animate-slow-zoom"
+                className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-sola-black" />
             </>
@@ -93,14 +103,6 @@ export default async function OrgHomePage() {
                 style={{
                   background: `radial-gradient(ellipse at 50% 0%, ${primaryColor} 0%, transparent 70%)`,
                 }}
-              />
-              <div
-                className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] rounded-full opacity-10 animate-pulse-slow"
-                style={{ backgroundColor: primaryColor }}
-              />
-              <div
-                className="absolute bottom-1/4 -right-1/4 w-[400px] h-[400px] rounded-full opacity-10 animate-pulse-slow"
-                style={{ backgroundColor: primaryColor, animationDelay: "1s" }}
               />
             </div>
           )}
@@ -115,7 +117,7 @@ export default async function OrgHomePage() {
           {/* Badge - only show if we have meaningful member count */}
           {memberCount >= 10 && (
             <div
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 animate-fade-in-up ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 ${
                 heroLayout === "centered" ? "mx-auto" : ""
               }`}
               style={{ backgroundColor: `${primaryColor}20`, border: `1px solid ${primaryColor}40` }}
@@ -129,30 +131,27 @@ export default async function OrgHomePage() {
 
           {/* Title */}
           <h1
-            className="font-display text-5xl md:text-6xl lg:text-7xl text-white uppercase tracking-tight mb-6 animate-fade-in-up"
-            style={{ animationDelay: "0.1s" }}
+            className="font-display text-5xl md:text-6xl lg:text-7xl text-white uppercase tracking-tight mb-6"
           >
-            {org.name}
+            {heroTitle}
           </h1>
 
           {/* Description */}
-          {org.description && (
+          {heroSubtitle && (
             <p
-              className={`text-white/70 text-xl md:text-2xl max-w-3xl mb-10 animate-fade-in-up ${
+              className={`text-white/70 text-xl md:text-2xl max-w-3xl mb-10 ${
                 heroLayout === "centered" ? "mx-auto" : ""
               }`}
-              style={{ animationDelay: "0.2s" }}
             >
-              {org.description}
+              {heroSubtitle}
             </p>
           )}
 
           {/* CTA Buttons */}
           <div
-            className={`flex flex-col sm:flex-row gap-4 animate-fade-in-up ${
+            className={`flex flex-col sm:flex-row gap-4 ${
               heroLayout === "centered" ? "justify-center" : ""
             }`}
-            style={{ animationDelay: "0.3s" }}
           >
             <Link
               href="/signup"
@@ -177,10 +176,9 @@ export default async function OrgHomePage() {
           {/* Social proof avatars - only show if meaningful activity */}
           {recentPosts.length >= 3 && postCount >= 5 && (
             <div
-              className={`mt-12 flex items-center gap-4 animate-fade-in-up ${
+              className={`mt-12 flex items-center gap-4 ${
                 heroLayout === "centered" ? "justify-center" : ""
               }`}
-              style={{ animationDelay: "0.4s" }}
             >
               <div className="flex -space-x-3">
                 {recentPosts.slice(0, 5).map((post, i) => (
@@ -213,12 +211,6 @@ export default async function OrgHomePage() {
           )}
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 border-2 border-white/20 rounded-full flex items-start justify-center p-2">
-            <div className="w-1 h-2 bg-white/40 rounded-full animate-scroll-indicator" />
-          </div>
-        </div>
       </section>
 
       {/* Stats Section - only show if there's meaningful content */}
@@ -261,7 +253,7 @@ export default async function OrgHomePage() {
       )}
 
       {/* Membership Tiers */}
-      {tiers.length > 0 && (
+      {showTiers && tiers.length > 0 && (
         <section className="py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
@@ -360,7 +352,7 @@ export default async function OrgHomePage() {
       )}
 
       {/* Featured Courses */}
-      {featuredCourses.length > 0 && (
+      {showCourses && featuredCourses.length > 0 && (
         <section className="py-20 bg-white/[0.02] border-y border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-end justify-between mb-12">
