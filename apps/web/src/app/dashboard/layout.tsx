@@ -16,6 +16,8 @@ import {
   Settings,
   BarChart3,
   MessageSquare,
+  DollarSign,
+  Globe,
 } from "lucide-react"
 
 const navigation = [
@@ -24,8 +26,9 @@ const navigation = [
   { name: "Courses", href: "/dashboard/courses", icon: BookOpen },
   { name: "Livestreams", href: "/dashboard/livestreams", icon: Video },
   { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
+  { name: "Tiers", href: "/dashboard/tiers", icon: CreditCard },
+  { name: "Earnings", href: "/dashboard/earnings", icon: DollarSign },
+  { name: "Domains", href: "/dashboard/domains", icon: Globe },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 

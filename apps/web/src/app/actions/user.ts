@@ -53,6 +53,42 @@ export async function getCurrentUserWithOrganization() {
 }
 
 /**
+ * Update member profile
+ */
+export async function updateMemberProfile(formData: FormData) {
+  const { isAuthenticated, claims } = await getLogtoContext(logtoConfig)
+
+  if (!isAuthenticated || !claims?.sub) {
+    return { error: "Not authenticated" }
+  }
+
+  const { user } = await getUserWithOrganization(claims.sub)
+  if (!user) {
+    return { error: "User not found" }
+  }
+
+  const name = formData.get("name") as string
+  const avatar = formData.get("avatar") as string | undefined
+
+  try {
+    const { db } = await import("@/lib/db")
+    await db.user.update({
+      where: { id: user.id },
+      data: {
+        name: name?.trim() || user.name,
+        avatar: avatar || user.avatar,
+      },
+    })
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    console.error("Failed to update profile:", error)
+    return { error: "Failed to update profile" }
+  }
+}
+
+/**
  * Create organization for current user (onboarding)
  */
 export async function createUserOrganization(formData: FormData) {

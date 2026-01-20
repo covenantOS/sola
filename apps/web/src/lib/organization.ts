@@ -174,3 +174,104 @@ export async function updateOrganizationStripeAccount(
     data,
   })
 }
+
+/**
+ * Get organization with community and channels
+ */
+export async function getOrganizationWithCommunity(slug: string) {
+  const org = await db.organization.findUnique({
+    where: { slug },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+        },
+      },
+      tiers: {
+        where: { isActive: true },
+        orderBy: { position: "asc" },
+      },
+      communities: {
+        where: { isDefault: true },
+        include: {
+          channels: {
+            orderBy: { position: "asc" },
+            include: {
+              _count: {
+                select: { posts: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return {
+    organization: org,
+    community: org?.communities[0] || null,
+    channels: org?.communities[0]?.channels || [],
+  }
+}
+
+/**
+ * Get user's membership in an organization
+ */
+export async function getUserMembership(userId: string, organizationId: string) {
+  return db.membership.findUnique({
+    where: {
+      userId_organizationId: {
+        userId,
+        organizationId,
+      },
+    },
+    include: {
+      tier: true,
+    },
+  })
+}
+
+/**
+ * Check if user can access a channel
+ */
+export function canAccessChannel(
+  channel: { isPublic: boolean; accessTierIds: string[] },
+  membership: { tierId: string | null; role: string } | null,
+  isOwner: boolean
+): boolean {
+  // Owners and admins can access everything
+  if (isOwner) return true
+  if (membership?.role === "OWNER" || membership?.role === "ADMIN") return true
+
+  // Public channels are accessible to everyone
+  if (channel.isPublic) return true
+
+  // No membership = no access to private channels
+  if (!membership || !membership.tierId) return false
+
+  // Check if user's tier has access
+  if (channel.accessTierIds.length === 0) return true // No restrictions
+  return channel.accessTierIds.includes(membership.tierId)
+}
+
+/**
+ * Check if user can post in a channel
+ */
+export function canPostInChannel(
+  channel: { type: string },
+  membership: { role: string } | null,
+  isOwner: boolean
+): boolean {
+  // Owners can always post
+  if (isOwner) return true
+
+  // Announcement channels are admin/owner only
+  if (channel.type === "ANNOUNCEMENTS") {
+    return membership?.role === "OWNER" || membership?.role === "ADMIN"
+  }
+
+  // Other channels - must be a member
+  return !!membership
+}
