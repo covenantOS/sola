@@ -167,7 +167,7 @@ async function handleAccountUpdated(account: Stripe.Account) {
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const metadata = session.metadata || {}
-  const { type, organizationId, userId, courseId, tierId } = metadata
+  const { type, organizationId, userId, courseId, tierId, customerEmail } = metadata
 
   if (type === "course_purchase" && courseId && userId) {
     // Create or update enrollment
@@ -210,6 +210,56 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       })
 
       console.log(`Updated membership for user ${userId} in org ${organizationId}`)
+    }
+  } else if (tierId && organizationId && session.subscription) {
+    // Handle member tier upgrade (from member checkout flow)
+    const subscriptionId = session.subscription as string
+    const customerId = typeof session.customer === "string"
+      ? session.customer
+      : session.customer?.id
+
+    if (subscriptionId && customerId) {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+
+      // Find membership by customer ID or email
+      let membership = await db.membership.findFirst({
+        where: {
+          stripeCustomerId: customerId,
+          organizationId,
+        },
+      })
+
+      // If not found by customer ID, try by email
+      if (!membership && customerEmail) {
+        const user = await db.user.findUnique({
+          where: { email: customerEmail.toLowerCase() },
+        })
+        if (user) {
+          membership = await db.membership.findUnique({
+            where: {
+              userId_organizationId: {
+                userId: user.id,
+                organizationId,
+              },
+            },
+          })
+        }
+      }
+
+      if (membership) {
+        await db.membership.update({
+          where: { id: membership.id },
+          data: {
+            tierId,
+            stripeSubscriptionId: subscriptionId,
+            stripeCustomerId: customerId,
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            status: "ACTIVE",
+          },
+        })
+
+        console.log(`Upgraded membership ${membership.id} to tier ${tierId}`)
+      }
     }
   }
 }
@@ -267,16 +317,28 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     return
   }
 
+  // Find the organization's free tier to downgrade to
+  const freeTier = await db.membershipTier.findFirst({
+    where: {
+      organizationId: membership.organizationId,
+      price: 0,
+      isActive: true,
+    },
+    orderBy: { position: "asc" },
+  })
+
   await db.membership.update({
     where: { id: membership.id },
     data: {
-      status: "CANCELLED",
+      tierId: freeTier?.id || null, // Downgrade to free tier
+      status: "ACTIVE", // Keep as active member with free tier
       stripeSubscriptionId: null,
       currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
     },
   })
 
-  console.log(`Cancelled membership ${membership.id}`)
+  console.log(`Downgraded membership ${membership.id} to free tier`)
 }
 
 async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {

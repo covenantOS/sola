@@ -143,3 +143,201 @@ export function constructWebhookEvent(
 ) {
   return stripe.webhooks.constructEvent(payload, signature, webhookSecret)
 }
+
+/**
+ * Create Checkout Session for membership tier
+ * Uses destination charges - money goes to creator's connected account
+ */
+export async function createMembershipCheckout({
+  organizationId,
+  tierId,
+  tierName,
+  priceInCents,
+  interval,
+  connectedAccountId,
+  customerId,
+  customerEmail,
+  successUrl,
+  cancelUrl,
+  applicationFeePercent = 0,
+}: {
+  organizationId: string
+  tierId: string
+  tierName: string
+  priceInCents: number
+  interval: "month" | "year"
+  connectedAccountId: string
+  customerId?: string
+  customerEmail: string
+  successUrl: string
+  cancelUrl: string
+  applicationFeePercent?: number
+}) {
+  // Create or get customer
+  let customer = customerId
+  if (!customer) {
+    const newCustomer = await stripe.customers.create({
+      email: customerEmail,
+      metadata: {
+        organizationId,
+      },
+    })
+    customer = newCustomer.id
+  }
+
+  // Calculate application fee
+  const applicationFeeAmount = Math.round(
+    (priceInCents * applicationFeePercent) / 100
+  )
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer,
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: tierName,
+            metadata: {
+              tierId,
+              organizationId,
+            },
+          },
+          unit_amount: priceInCents,
+          recurring: {
+            interval,
+          },
+        },
+        quantity: 1,
+      },
+    ],
+    subscription_data: {
+      application_fee_percent: applicationFeePercent,
+      transfer_data: {
+        destination: connectedAccountId,
+      },
+      metadata: {
+        tierId,
+        organizationId,
+      },
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      tierId,
+      organizationId,
+      customerEmail,
+    },
+  })
+
+  return { sessionId: session.id, url: session.url, customerId: customer }
+}
+
+/**
+ * Create a one-time payment checkout (for course purchases, etc.)
+ */
+export async function createOneTimeCheckout({
+  organizationId,
+  productId,
+  productName,
+  priceInCents,
+  connectedAccountId,
+  customerId,
+  customerEmail,
+  successUrl,
+  cancelUrl,
+  applicationFeePercent = 0,
+  metadata = {},
+}: {
+  organizationId: string
+  productId: string
+  productName: string
+  priceInCents: number
+  connectedAccountId: string
+  customerId?: string
+  customerEmail: string
+  successUrl: string
+  cancelUrl: string
+  applicationFeePercent?: number
+  metadata?: Record<string, string>
+}) {
+  // Calculate application fee
+  const applicationFeeAmount = Math.round(
+    (priceInCents * applicationFeePercent) / 100
+  )
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    customer: customerId,
+    customer_email: customerId ? undefined : customerEmail,
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: productName,
+          },
+          unit_amount: priceInCents,
+        },
+        quantity: 1,
+      },
+    ],
+    payment_intent_data: {
+      application_fee_amount: applicationFeeAmount,
+      transfer_data: {
+        destination: connectedAccountId,
+      },
+      metadata: {
+        productId,
+        organizationId,
+        ...metadata,
+      },
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      productId,
+      organizationId,
+      ...metadata,
+    },
+  })
+
+  return { sessionId: session.id, url: session.url }
+}
+
+/**
+ * Get subscription details
+ */
+export async function getSubscription(subscriptionId: string) {
+  return stripe.subscriptions.retrieve(subscriptionId)
+}
+
+/**
+ * Cancel subscription
+ */
+export async function cancelSubscription(
+  subscriptionId: string,
+  atPeriodEnd = true
+) {
+  if (atPeriodEnd) {
+    return stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    })
+  }
+  return stripe.subscriptions.cancel(subscriptionId)
+}
+
+/**
+ * Create billing portal session for member to manage subscription
+ */
+export async function createBillingPortalSession(
+  customerId: string,
+  returnUrl: string
+) {
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
+  })
+  return session
+}
