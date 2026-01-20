@@ -80,6 +80,16 @@ export function MembersClient({ initialTiers, initialMembers }: MembersClientPro
     features: "",
   })
 
+  const [editingTier, setEditingTier] = useState<Tier | null>(null)
+  const [editTierData, setEditTierData] = useState({
+    name: "",
+    description: "",
+    price: 0,
+    interval: "month",
+    features: "",
+    isActive: true,
+  })
+
   const filteredMembers = members.filter(
     (m) =>
       m.user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -120,6 +130,60 @@ export function MembersClient({ initialTiers, initialMembers }: MembersClientPro
 
     setTiers((prev) => prev.filter((t) => t.id !== id))
     router.refresh()
+  }
+
+  const handleStartEditTier = (tier: Tier) => {
+    const features = JSON.parse(tier.features || "[]") as string[]
+    setEditTierData({
+      name: tier.name,
+      description: tier.description || "",
+      price: tier.price,
+      interval: tier.interval,
+      features: features.join("\n"),
+      isActive: tier.isActive,
+    })
+    setEditingTier(tier)
+  }
+
+  const handleUpdateTier = async () => {
+    if (!editingTier || !editTierData.name.trim()) return
+    setIsLoading(true)
+
+    const features = editTierData.features
+      .split("\n")
+      .map((f) => f.trim())
+      .filter(Boolean)
+
+    const result = await updateMembershipTier({
+      id: editingTier.id,
+      name: editTierData.name,
+      description: editTierData.description,
+      price: editTierData.price,
+      interval: editTierData.interval,
+      features,
+      isActive: editTierData.isActive,
+    })
+
+    if (!result.error) {
+      setTiers((prev) =>
+        prev.map((t) =>
+          t.id === editingTier.id
+            ? {
+                ...t,
+                name: editTierData.name,
+                description: editTierData.description,
+                price: editTierData.price,
+                interval: editTierData.interval,
+                features: JSON.stringify(features),
+                isActive: editTierData.isActive,
+              }
+            : t
+        )
+      )
+      setEditingTier(null)
+      router.refresh()
+    }
+    setIsLoading(false)
   }
 
   const handleUpdateMemberRole = async (membershipId: string, role: string) => {
@@ -433,12 +497,22 @@ export function MembersClient({ initialTiers, initialMembers }: MembersClientPro
                           </span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteTier(tier.id)}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-sola-red/20 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4 text-white/40 hover:text-sola-red" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleStartEditTier(tier)}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+                          title="Edit tier"
+                        >
+                          <Edit className="h-4 w-4 text-white/40 hover:text-white" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTier(tier.id)}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-sola-red/20 transition-colors"
+                          title="Delete tier"
+                        >
+                          <Trash2 className="h-4 w-4 text-white/40 hover:text-sola-red" />
+                        </button>
+                      </div>
                     </div>
 
                     {tier.description && (
@@ -603,6 +677,154 @@ export function MembersClient({ initialTiers, initialMembers }: MembersClientPro
                   <>
                     <Plus className="h-4 w-4" />
                     Create Tier
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tier Modal */}
+      {editingTier && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-sola-dark-navy border border-white/10 w-full max-w-lg">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h3 className="font-display text-lg text-white uppercase tracking-wide">
+                Edit Membership Tier
+              </h3>
+              <button
+                onClick={() => setEditingTier(null)}
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <X className="h-5 w-5 text-white/60" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+                  Tier Name *
+                </label>
+                <input
+                  type="text"
+                  value={editTierData.name}
+                  onChange={(e) =>
+                    setEditTierData({ ...editTierData, name: e.target.value })
+                  }
+                  placeholder="Premium"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={editTierData.description}
+                  onChange={(e) =>
+                    setEditTierData({ ...editTierData, description: e.target.value })
+                  }
+                  rows={2}
+                  placeholder="What's included in this tier?"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+                    Price *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editTierData.price}
+                      onChange={(e) =>
+                        setEditTierData({
+                          ...editTierData,
+                          price: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full pl-8 pr-4 py-3 bg-white/5 border border-white/20 text-white focus:border-sola-gold focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+                    Billing Interval
+                  </label>
+                  <select
+                    value={editTierData.interval}
+                    onChange={(e) =>
+                      setEditTierData({ ...editTierData, interval: e.target.value })
+                    }
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white focus:border-sola-gold focus:outline-none transition-colors"
+                  >
+                    <option value="month">Monthly</option>
+                    <option value="year">Yearly</option>
+                    <option value="one_time">One-time</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-2">
+                  Features (one per line)
+                </label>
+                <textarea
+                  value={editTierData.features}
+                  onChange={(e) =>
+                    setEditTierData({ ...editTierData, features: e.target.value })
+                  }
+                  rows={4}
+                  placeholder="Access to all content&#10;Private community&#10;Monthly Q&A calls"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white placeholder:text-white/40 focus:border-sola-gold focus:outline-none transition-colors resize-none font-mono text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTierData.isActive}
+                    onChange={(e) =>
+                      setEditTierData({ ...editTierData, isActive: e.target.checked })
+                    }
+                    className="w-5 h-5 bg-white/5 border border-white/20 rounded focus:ring-sola-gold"
+                  />
+                  <span className="text-white/80">Active (visible to members)</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-white/10 flex justify-end gap-3">
+              <button
+                onClick={() => setEditingTier(null)}
+                className="px-6 py-3 text-white/60 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateTier}
+                disabled={!editTierData.name.trim() || isLoading}
+                className="inline-flex items-center gap-2 bg-sola-gold text-sola-black font-display font-semibold uppercase tracking-widest px-6 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Save Changes
                   </>
                 )}
               </button>
