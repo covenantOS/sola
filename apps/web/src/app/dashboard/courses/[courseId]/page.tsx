@@ -66,11 +66,12 @@ type Course = {
   }
 }
 
-const lessonTypeIcons = {
+const lessonTypeIcons: Record<string, typeof PlayCircle> = {
   VIDEO: PlayCircle,
   TEXT: FileText,
   QUIZ: HelpCircle,
   ASSIGNMENT: ClipboardList,
+  DOWNLOAD: FileText,
 }
 
 export default function CourseDetailPage() {

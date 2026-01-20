@@ -35,7 +35,7 @@ interface AnalyticsClientProps {
   recentActivity: {
     posts: Array<{
       id: string
-      title: string
+      content: string
       author: string | null
       authorAvatar: string | null
       channel: string
@@ -46,7 +46,7 @@ interface AnalyticsClientProps {
       userName: string | null
       userAvatar: string | null
       courseName: string
-      createdAt: Date
+      enrolledAt: Date
     }>
   }
 }
@@ -202,7 +202,7 @@ export function AnalyticsClient({ overview, recentActivity }: AnalyticsClientPro
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white truncate">{post.title}</p>
+                    <p className="text-white truncate">{post.content}</p>
                     <p className="text-xs text-white/40">
                       {post.author} in #{post.channel}
                     </p>
@@ -254,7 +254,7 @@ export function AnalyticsClient({ overview, recentActivity }: AnalyticsClientPro
                     </p>
                   </div>
                   <span className="text-xs text-white/30">
-                    {formatDistanceToNow(new Date(enrollment.createdAt), {
+                    {formatDistanceToNow(new Date(enrollment.enrolledAt), {
                       addSuffix: true,
                     })}
                   </span>

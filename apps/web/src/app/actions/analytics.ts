@@ -47,7 +47,7 @@ export async function getAnalytics() {
   })
 
   const publishedCourseCount = await db.course.count({
-    where: { organizationId: org.id, status: "PUBLISHED" },
+    where: { organizationId: org.id, isPublished: true },
   })
 
   const enrollmentCount = await db.enrollment.count({
@@ -61,7 +61,7 @@ export async function getAnalytics() {
   const recentEnrollments = await db.enrollment.count({
     where: {
       course: { organizationId: org.id },
-      createdAt: { gte: thirtyDaysAgo },
+      enrolledAt: { gte: thirtyDaysAgo },
     },
   })
 
@@ -69,7 +69,7 @@ export async function getAnalytics() {
   const recentMembers = await db.membership.count({
     where: {
       organizationId: org.id,
-      createdAt: { gte: thirtyDaysAgo },
+      joinedAt: { gte: thirtyDaysAgo },
     },
   })
 
@@ -95,7 +95,7 @@ export async function getAnalytics() {
 
   const recentEnrollmentsList = await db.enrollment.findMany({
     where: { course: { organizationId: org.id } },
-    orderBy: { createdAt: "desc" },
+    orderBy: { enrolledAt: "desc" },
     take: 5,
     include: {
       user: { select: { name: true, avatar: true, email: true } },
@@ -131,7 +131,7 @@ export async function getAnalytics() {
     recentActivity: {
       posts: recentPosts.map((p) => ({
         id: p.id,
-        title: p.title,
+        content: p.content.slice(0, 100) + (p.content.length > 100 ? "..." : ""),
         author: p.author.name,
         authorAvatar: p.author.avatar,
         channel: p.channel.name,
@@ -142,7 +142,7 @@ export async function getAnalytics() {
         userName: e.user.name || e.user.email,
         userAvatar: e.user.avatar,
         courseName: e.course.title,
-        createdAt: e.createdAt,
+        enrolledAt: e.enrolledAt,
       })),
     },
   }

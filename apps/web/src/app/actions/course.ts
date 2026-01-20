@@ -69,7 +69,13 @@ export async function getCourse(courseId: string) {
     return { error: "Course not found" }
   }
 
-  return { course }
+  // Convert Decimal to number for frontend compatibility
+  return {
+    course: {
+      ...course,
+      price: course.price ? Number(course.price) : null,
+    },
+  }
 }
 
 export async function createCourse(formData: FormData) {
@@ -126,7 +132,7 @@ export async function updateCourse(courseId: string, formData: FormData) {
   const isPublished = formData.get("isPublished") === "true"
 
   try {
-    const course = await db.course.update({
+    const updatedCourse = await db.course.update({
       where: { id: courseId },
       data: {
         title: title?.trim(),
@@ -138,7 +144,14 @@ export async function updateCourse(courseId: string, formData: FormData) {
 
     revalidatePath("/dashboard/courses")
     revalidatePath(`/dashboard/courses/${courseId}`)
-    return { success: true, course }
+    // Convert Decimal to number for frontend compatibility
+    return {
+      success: true,
+      course: {
+        ...updatedCourse,
+        price: updatedCourse.price ? Number(updatedCourse.price) : null,
+      },
+    }
   } catch (error) {
     console.error("Failed to update course:", error)
     return { error: "Failed to update course" }
@@ -306,7 +319,7 @@ export async function updateLesson(lessonId: string, formData: FormData) {
   const title = formData.get("title") as string
   const description = formData.get("description") as string | undefined
   const content = formData.get("content") as string | undefined
-  const isPublished = formData.get("isPublished") === "true"
+  const isFreePreview = formData.get("isFreePreview") === "true"
 
   try {
     const lesson = await db.lesson.update({
@@ -315,7 +328,7 @@ export async function updateLesson(lessonId: string, formData: FormData) {
         title: title?.trim(),
         description: description?.trim(),
         content: content?.trim(),
-        isPublished,
+        isFreePreview,
       },
     })
 
@@ -396,7 +409,7 @@ export async function getEnrollments(courseId: string) {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { enrolledAt: "desc" },
   })
 
   return { enrollments }

@@ -25,7 +25,7 @@ type Channel = {
   type: "DISCUSSION" | "ANNOUNCEMENTS" | "EVENTS" | "RESOURCES"
   isPublic: boolean
   position: number
-  _count: {
+  _count?: {
     posts: number
   }
 }
@@ -245,8 +245,8 @@ export default function CommunityPage() {
                     <span className={`text-sm truncate ${isSelected ? "text-white" : "text-white/60"}`}>
                       {channel.name}
                     </span>
-                    {channel._count.posts > 0 && (
-                      <span className="text-xs text-white/30">{channel._count.posts}</span>
+                    {(channel._count?.posts ?? 0) > 0 && (
+                      <span className="text-xs text-white/30">{channel._count?.posts}</span>
                     )}
                   </div>
                   <button

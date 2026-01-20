@@ -32,6 +32,7 @@ export async function getMembershipTiers() {
     tiers: tiers.map((t) => ({
       ...t,
       price: Number(t.price),
+      features: typeof t.features === "string" ? t.features : JSON.stringify(t.features),
       memberCount: t._count.memberships,
     })),
   }
@@ -87,7 +88,13 @@ export async function createMembershipTier({
   })
 
   revalidatePath("/dashboard/members")
-  return { tier: { ...tier, price: Number(tier.price) } }
+  return {
+    tier: {
+      ...tier,
+      price: Number(tier.price),
+      features: typeof tier.features === "string" ? tier.features : JSON.stringify(tier.features),
+    },
+  }
 }
 
 // Update a membership tier
@@ -145,7 +152,13 @@ export async function updateMembershipTier({
   })
 
   revalidatePath("/dashboard/members")
-  return { tier: { ...updated, price: Number(updated.price) } }
+  return {
+    tier: {
+      ...updated,
+      price: Number(updated.price),
+      features: typeof updated.features === "string" ? updated.features : JSON.stringify(updated.features),
+    },
+  }
 }
 
 // Delete a membership tier

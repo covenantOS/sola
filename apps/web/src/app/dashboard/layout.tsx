@@ -3,6 +3,9 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { logtoConfig } from "@/lib/logto"
+
+// Force dynamic rendering for authenticated pages
+export const dynamic = "force-dynamic"
 import { UserButton } from "@/components/auth/user-button"
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard"
 import { GuidedTour } from "@/components/tour/guided-tour"

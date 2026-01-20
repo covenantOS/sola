@@ -17,13 +17,13 @@ export default async function OrgHomePage() {
   // Get stats
   const [communityCount, courseCount, memberCount] = await Promise.all([
     db.community.count({ where: { organizationId: org.id } }),
-    db.course.count({ where: { organizationId: org.id, status: "PUBLISHED" } }),
+    db.course.count({ where: { organizationId: org.id, isPublished: true } }),
     db.membership.count({ where: { organizationId: org.id } }),
   ])
 
   // Get featured courses
   const featuredCourses = await db.course.findMany({
-    where: { organizationId: org.id, status: "PUBLISHED" },
+    where: { organizationId: org.id, isPublished: true },
     take: 3,
     orderBy: { createdAt: "desc" },
   })
