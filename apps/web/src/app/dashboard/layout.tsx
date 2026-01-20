@@ -20,6 +20,8 @@ import {
   Globe,
 } from "lucide-react"
 
+export const dynamic = "force-dynamic"
+
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Community", href: "/dashboard/community", icon: Users },

@@ -3,7 +3,6 @@
 import { LogOut, User, Settings, LayoutDashboard } from "lucide-react"
 import { useState } from "react"
 import Link from "next/link"
-import { signOut } from "@logto/next/client"
 
 type Props = {
   user: {

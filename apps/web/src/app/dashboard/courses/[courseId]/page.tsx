@@ -13,6 +13,7 @@ import {
   FileText,
   HelpCircle,
   ClipboardList,
+  Download,
   Trash2,
   Edit2,
   Eye,
@@ -71,6 +72,7 @@ const lessonTypeIcons = {
   TEXT: FileText,
   QUIZ: HelpCircle,
   ASSIGNMENT: ClipboardList,
+  DOWNLOAD: Download,
 }
 
 export default function CourseDetailPage() {
@@ -91,12 +93,18 @@ export default function CourseDetailPage() {
   const [newLessonName, setNewLessonName] = useState("")
   const [newLessonType, setNewLessonType] = useState<string>("VIDEO")
 
+  // Helper to convert Prisma Decimal to number
+  const normalizeCourse = (course: any): Course => ({
+    ...course,
+    price: course.price ? Number(course.price) : null,
+  })
+
   // Load course
   useEffect(() => {
     async function loadCourse() {
       const result = await getCourse(courseId)
       if (result.course) {
-        setCourse(result.course as Course)
+        setCourse(normalizeCourse(result.course))
         // Expand all modules by default
         setExpandedModules(new Set(result.course.modules.map((m: Module) => m.id)))
       }
@@ -126,7 +134,11 @@ export default function CourseDetailPage() {
 
     const result = await updateCourse(courseId, formData)
     if (result.course) {
-      setCourse(prev => prev ? { ...prev, ...result.course } : null)
+      setCourse(prev => prev ? {
+        ...prev,
+        ...result.course,
+        price: result.course.price ? Number(result.course.price) : null
+      } : null)
       setEditingCourse(false)
     }
     setSaving(false)

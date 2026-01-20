@@ -1,13 +1,27 @@
 import Mux from "@mux/mux-node"
 import crypto from "crypto"
 
-// Initialize Mux client
-const mux = new Mux({
-  tokenId: process.env.MUX_TOKEN_ID!,
-  tokenSecret: process.env.MUX_TOKEN_SECRET!,
-})
+// Lazy-initialize Mux client to avoid build-time errors when env vars aren't set
+let _mux: Mux | null = null
 
-export { mux }
+function getMux(): Mux {
+  if (!_mux) {
+    const tokenId = process.env.MUX_TOKEN_ID
+    const tokenSecret = process.env.MUX_TOKEN_SECRET
+
+    if (!tokenId || !tokenSecret) {
+      throw new Error("MUX_TOKEN_ID and MUX_TOKEN_SECRET environment variables are required")
+    }
+
+    _mux = new Mux({
+      tokenId,
+      tokenSecret,
+    })
+  }
+  return _mux
+}
+
+export const mux = { get video() { return getMux().video }, get jwt() { return getMux().jwt } }
 
 // ==================== VIDEO ON DEMAND (VOD) ====================
 

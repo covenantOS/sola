@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getLogtoContext } from "@logto/next/server-actions"
 import { logtoConfig } from "@/lib/logto"
 import { getUserWithOrganization } from "@/lib/user-sync"

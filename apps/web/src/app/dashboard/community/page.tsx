@@ -1,4 +1,6 @@
 "use client"
+export const dynamic = "force-dynamic"
+
 
 import { useState, useEffect, useCallback } from "react"
 import {
@@ -104,7 +106,12 @@ export default function CommunityPage() {
 
     const result = await createChannel(formData)
     if (result.success && result.channel) {
-      setChannels(prev => [...prev, result.channel as Channel])
+      const newChannel: Channel = {
+        ...result.channel,
+        type: result.channel.type as Channel["type"],
+        _count: { posts: 0 },
+      }
+      setChannels(prev => [...prev, newChannel])
       setNewChannelName("")
       setShowNewChannel(false)
     }
