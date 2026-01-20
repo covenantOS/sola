@@ -207,6 +207,7 @@ enum MemberRole {
 }
 
 enum MemberStatus {
+  PENDING
   ACTIVE
   PAUSED
   CANCELLED

@@ -97,6 +97,79 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Verify domain DNS
+export async function PATCH(request: NextRequest) {
+  try {
+    const { claims } = await getLogtoContext(logtoConfig)
+    const { organization } = await getUserWithOrganization(claims?.sub || "")
+
+    if (!organization) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    }
+
+    const { domainId } = await request.json()
+
+    if (!domainId) {
+      return NextResponse.json({ error: "Domain ID is required" }, { status: 400 })
+    }
+
+    // Verify domain belongs to this org
+    const domain = await db.domain.findFirst({
+      where: { id: domainId, organizationId: organization.id },
+    })
+
+    if (!domain) {
+      return NextResponse.json({ error: "Domain not found" }, { status: 404 })
+    }
+
+    // Perform DNS verification
+    let verified = false
+    let errorMessage = null
+
+    try {
+      // Check CNAME record
+      const dns = await import("dns").then((m) => m.promises)
+
+      try {
+        const records = await dns.resolveCname(domain.domain)
+        // Check if CNAME points to our proxy domain
+        const expectedTarget = process.env.DOMAIN_PROXY_TARGET || "proxy.solaplus.ai"
+        verified = records.some((r) => r.includes(expectedTarget) || r.includes("vercel"))
+      } catch (cnameErr) {
+        // CNAME not found, try A record as fallback
+        try {
+          const aRecords = await dns.resolve4(domain.domain)
+          // For A records, we just check if any exist (Vercel handles the routing)
+          verified = aRecords.length > 0
+        } catch {
+          errorMessage = "No DNS records found. Please add a CNAME record."
+        }
+      }
+    } catch (dnsErr) {
+      console.error("DNS lookup failed:", dnsErr)
+      errorMessage = "Failed to verify DNS. Please check your DNS settings."
+    }
+
+    // Update domain status
+    const updatedDomain = await db.domain.update({
+      where: { id: domainId },
+      data: {
+        status: verified ? "VERIFIED" : "PENDING",
+        verifiedAt: verified ? new Date() : null,
+      },
+    })
+
+    return NextResponse.json({
+      domain: updatedDomain,
+      verified,
+      error: errorMessage,
+    })
+  } catch (error) {
+    console.error("Failed to verify domain:", error)
+    return NextResponse.json({ error: "Failed to verify domain" }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { claims } = await getLogtoContext(logtoConfig)

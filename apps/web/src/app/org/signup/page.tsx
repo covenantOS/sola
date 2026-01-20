@@ -118,7 +118,13 @@ export default function MemberSignupPage() {
         return
       }
 
-      // Redirect to member dashboard
+      // If paid tier, redirect to Stripe checkout
+      if (data.requiresPayment && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+        return
+      }
+
+      // Free tier - go directly to member dashboard
       router.push("/member")
       router.refresh()
     } catch {
