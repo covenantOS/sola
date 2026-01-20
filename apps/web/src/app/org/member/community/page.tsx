@@ -85,6 +85,25 @@ export default async function MemberCommunityPage() {
           slug: true,
         },
       },
+      reactions: {
+        select: {
+          emoji: true,
+          userId: true,
+        },
+      },
+      comments: {
+        take: 2,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
+          },
+        },
+      },
       _count: {
         select: { comments: true, reactions: true },
       },
