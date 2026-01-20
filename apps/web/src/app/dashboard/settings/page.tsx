@@ -10,6 +10,10 @@ import {
   Globe,
   Palette,
   ChevronRight,
+  Rocket,
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react"
 
 const settingsLinks = [
@@ -67,6 +71,76 @@ export default async function SettingsPage() {
         </p>
       </div>
 
+      {/* Launch Status */}
+      {organization && (
+        <div
+          className={`border p-6 ${
+            organization.stripeOnboardingComplete
+              ? "bg-green-500/5 border-green-500/30"
+              : "bg-orange-500/5 border-orange-500/30"
+          }`}
+        >
+          <div className="flex items-start gap-4">
+            <div
+              className={`w-12 h-12 flex items-center justify-center flex-shrink-0 ${
+                organization.stripeOnboardingComplete
+                  ? "bg-green-500/20"
+                  : "bg-orange-500/20"
+              }`}
+            >
+              {organization.stripeOnboardingComplete ? (
+                <CheckCircle2 className="h-6 w-6 text-green-400" />
+              ) : (
+                <AlertTriangle className="h-6 w-6 text-orange-400" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display text-lg text-white uppercase tracking-wide flex items-center gap-2">
+                <Rocket className="h-4 w-4" />
+                Launch Status
+              </h2>
+              {organization.stripeOnboardingComplete ? (
+                <>
+                  <p className="text-green-400 mt-1">
+                    Your site is live and ready to accept members!
+                  </p>
+                  <div className="mt-4">
+                    <a
+                      href={`https://${organization.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || "solaplus.ai"}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-sola-gold hover:text-sola-gold/80 transition-colors"
+                    >
+                      Visit your site
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-orange-400 mt-1">
+                    Complete Stripe setup to launch your site
+                  </p>
+                  <p className="text-white/60 text-sm mt-2">
+                    Your member site is showing a "Coming Soon" page until you connect
+                    Stripe to accept payments.
+                  </p>
+                  <div className="mt-4">
+                    <Link
+                      href="/dashboard/settings/payments"
+                      className="inline-flex items-center gap-2 bg-sola-gold text-sola-black px-4 py-2 font-display font-semibold uppercase tracking-widest text-xs"
+                    >
+                      Connect Stripe
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Organization Info */}
       {organization && (
         <div className="bg-white/5 border border-white/10 p-6">
@@ -85,7 +159,7 @@ export default async function SettingsPage() {
                 Subdomain
               </p>
               <p className="text-white">
-                {organization.slug}.{process.env.NEXT_PUBLIC_SUBDOMAIN_BASE || "my.solaplus.ai"}
+                {organization.slug}.{process.env.NEXT_PUBLIC_ROOT_DOMAIN || "solaplus.ai"}
               </p>
             </div>
             {organization.description && (

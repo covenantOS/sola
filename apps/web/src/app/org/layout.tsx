@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { getOrganizationByDomain } from "@/lib/subdomain"
 import Link from "next/link"
+import { ComingSoonPage } from "./coming-soon"
 
 export default async function OrgLayout({
   children,
@@ -16,6 +17,16 @@ export default async function OrgLayout({
   // Get branding from org settings
   const settings = (org.settings as Record<string, unknown>) || {}
   const primaryColor = (settings.primaryColor as string) || "#D4A84B"
+
+  // Check if organization is "live" (has completed Stripe onboarding)
+  // Organizations can opt out of launch gate via settings
+  const bypassLaunchGate = (settings.bypassLaunchGate as boolean) || false
+  const isLive = org.stripeOnboardingComplete || bypassLaunchGate
+
+  // Show coming soon page if not live
+  if (!isLive) {
+    return <ComingSoonPage org={org} primaryColor={primaryColor} />
+  }
 
   return (
     <div className="min-h-screen bg-sola-black">
