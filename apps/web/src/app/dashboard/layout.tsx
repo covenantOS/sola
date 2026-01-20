@@ -16,11 +16,13 @@ import {
   Settings,
   BarChart3,
   MessageSquare,
+  Crown,
 } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Community", href: "/dashboard/community", icon: Users },
+  { name: "Members", href: "/dashboard/members", icon: Crown },
   { name: "Courses", href: "/dashboard/courses", icon: BookOpen },
   { name: "Livestreams", href: "/dashboard/livestreams", icon: Video },
   { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
