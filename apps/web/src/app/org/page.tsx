@@ -112,18 +112,20 @@ export default async function OrgHomePage() {
             heroLayout === "centered" ? "text-center" : ""
           }`}
         >
-          {/* Badge */}
-          <div
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 animate-fade-in-up ${
-              heroLayout === "centered" ? "mx-auto" : ""
-            }`}
-            style={{ backgroundColor: `${primaryColor}20`, border: `1px solid ${primaryColor}40` }}
-          >
-            <Sparkles className="h-4 w-4" style={{ color: primaryColor }} />
-            <span className="text-white/80 text-sm font-medium">
-              {memberCount.toLocaleString()} members and growing
-            </span>
-          </div>
+          {/* Badge - only show if we have meaningful member count */}
+          {memberCount >= 10 && (
+            <div
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 animate-fade-in-up ${
+                heroLayout === "centered" ? "mx-auto" : ""
+              }`}
+              style={{ backgroundColor: `${primaryColor}20`, border: `1px solid ${primaryColor}40` }}
+            >
+              <Sparkles className="h-4 w-4" style={{ color: primaryColor }} />
+              <span className="text-white/80 text-sm font-medium">
+                {memberCount.toLocaleString()} members and growing
+              </span>
+            </div>
+          )}
 
           {/* Title */}
           <h1
@@ -172,8 +174,8 @@ export default async function OrgHomePage() {
             </Link>
           </div>
 
-          {/* Social proof avatars */}
-          {recentPosts.length > 0 && (
+          {/* Social proof avatars - only show if meaningful activity */}
+          {recentPosts.length >= 3 && postCount >= 5 && (
             <div
               className={`mt-12 flex items-center gap-4 animate-fade-in-up ${
                 heroLayout === "centered" ? "justify-center" : ""
@@ -219,17 +221,21 @@ export default async function OrgHomePage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      {showStats && (
+      {/* Stats Section - only show if there's meaningful content */}
+      {showStats && (memberCount >= 10 || courseCount > 0) && (
         <section className="py-16 border-y border-white/10 bg-white/[0.02]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className={`grid gap-8 ${
+              [memberCount >= 10, courseCount > 0, postCount >= 5].filter(Boolean).length <= 2
+                ? 'grid-cols-2 max-w-lg mx-auto'
+                : 'grid-cols-2 md:grid-cols-4'
+            }`}>
               {[
-                { icon: Users, value: memberCount, label: "Members" },
-                { icon: BookOpen, value: courseCount, label: "Courses" },
-                { icon: MessageCircle, value: postCount, label: "Posts" },
-                { icon: Video, value: communityCount, label: "Communities" },
-              ].map((stat, i) => (
+                { icon: Users, value: memberCount, label: "Members", show: memberCount >= 10 },
+                { icon: BookOpen, value: courseCount, label: "Courses", show: courseCount > 0 },
+                { icon: MessageCircle, value: postCount, label: "Posts", show: postCount >= 5 },
+                { icon: Video, value: communityCount, label: "Channels", show: communityCount > 0 && postCount >= 5 },
+              ].filter(stat => stat.show).map((stat, i) => (
                 <div
                   key={stat.label}
                   className="text-center group"

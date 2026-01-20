@@ -225,17 +225,18 @@ export default function MemberSignupPage() {
               />
             </div>
 
-            {/* Tier Selection */}
-            {tiers.length > 1 && (
+            {/* Tier Selection - always show if tiers exist */}
+            {tiers.length > 0 && (
               <div>
                 <label className="block text-sm font-display text-white/80 uppercase tracking-wide mb-4">
-                  Select Plan
+                  {tiers.some(t => t.price === 0) ? "Select Plan" : "Select Membership"}
                 </label>
                 <div className="space-y-3">
                   {tiers.map((tier) => {
                     const features = typeof tier.features === "string"
                       ? JSON.parse(tier.features)
                       : tier.features || []
+                    const isPaid = tier.price > 0
 
                     return (
                       <button
@@ -252,10 +253,8 @@ export default function MemberSignupPage() {
                           <span className="font-display text-white uppercase tracking-wide">
                             {tier.name}
                           </span>
-                          <span style={{ color: primaryColor }}>
-                            {tier.price > 0
-                              ? `$${tier.price}/${tier.interval}`
-                              : "Free"}
+                          <span style={{ color: isPaid ? primaryColor : "#22c55e" }}>
+                            {isPaid ? `$${tier.price}/${tier.interval}` : "Free"}
                           </span>
                         </div>
                         {tier.description && (
@@ -275,6 +274,11 @@ export default function MemberSignupPage() {
                     )
                   })}
                 </div>
+                {!tiers.some(t => t.price === 0) && (
+                  <p className="text-white/40 text-xs mt-3">
+                    This community requires a paid membership. You&apos;ll be redirected to checkout after creating your account.
+                  </p>
+                )}
               </div>
             )}
 

@@ -142,7 +142,7 @@ export default async function CommunityAdminPage() {
         </Link>
 
         <Link
-          href="/dashboard/community/members"
+          href="/dashboard/members"
           className="bg-white/5 border border-white/10 p-6 hover:border-sola-gold/50 transition-all group"
         >
           <div className="flex items-start justify-between">
@@ -152,10 +152,10 @@ export default async function CommunityAdminPage() {
               </div>
               <div>
                 <h3 className="font-display text-white uppercase tracking-wide group-hover:text-sola-gold transition-colors">
-                  Members
+                  Memberships
                 </h3>
                 <p className="text-sm text-white/60 mt-1">
-                  View and manage community members
+                  View and manage members and tiers
                 </p>
               </div>
             </div>

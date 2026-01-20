@@ -15,6 +15,7 @@ import {
   Star,
 } from "lucide-react"
 import { AddDomainForm } from "./add-domain-form"
+import { DomainRow } from "./domain-row"
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "solaplus.ai"
 
@@ -108,54 +109,7 @@ export default async function DomainsPage() {
         ) : (
           <div className="bg-white/5 border border-white/10 mt-4">
             {domains.map((domain) => (
-              <div
-                key={domain.id}
-                className="flex items-center justify-between p-4 border-b border-white/5 last:border-0"
-              >
-                <div className="flex items-center gap-4">
-                  <Globe className="h-5 w-5 text-white/40" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`https://${domain.domain}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-white hover:text-sola-gold transition-colors"
-                      >
-                        {domain.domain}
-                      </a>
-                      {domain.isPrimary && (
-                        <span className="text-xs px-2 py-0.5 bg-sola-gold/20 text-sola-gold">
-                          Primary
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-white/40 mt-1">
-                      Points to: {domain.targetType.toLowerCase()}
-                      {domain.targetId && ` (${domain.targetId})`}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  {domain.status === "VERIFIED" ? (
-                    <span className="flex items-center gap-1 text-green-400 text-sm">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Verified
-                    </span>
-                  ) : domain.status === "ERROR" ? (
-                    <span className="flex items-center gap-1 text-red-400 text-sm">
-                      <AlertCircle className="h-4 w-4" />
-                      Error
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-orange-400 text-sm">
-                      <Clock className="h-4 w-4" />
-                      Pending
-                    </span>
-                  )}
-                </div>
-              </div>
+              <DomainRow key={domain.id} domain={domain} />
             ))}
           </div>
         )}
