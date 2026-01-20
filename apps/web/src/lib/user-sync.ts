@@ -28,16 +28,24 @@ export async function syncUserFromLogto(claims: LogtoUserClaims) {
   })
 
   if (existingUser) {
-    // Update user if email or name changed
-    if (
-      existingUser.email !== claims.email ||
-      existingUser.name !== claims.name ||
-      existingUser.avatar !== claims.picture
-    ) {
+    // Check if we have a better email to use
+    // Prioritize claims.email over placeholder emails (ending with @logto.user)
+    const isPlaceholderEmail = existingUser.email.endsWith("@logto.user")
+    const newEmail = claims.email
+      ? claims.email
+      : (isPlaceholderEmail ? existingUser.email : existingUser.email)
+
+    // Update user if email, name, or avatar changed
+    const needsUpdate =
+      (claims.email && existingUser.email !== claims.email) ||
+      (claims.name && existingUser.name !== claims.name) ||
+      (claims.picture && existingUser.avatar !== claims.picture)
+
+    if (needsUpdate) {
       return db.user.update({
         where: { id: existingUser.id },
         data: {
-          email: claims.email || existingUser.email,
+          email: newEmail,
           name: claims.name || existingUser.name,
           avatar: claims.picture || existingUser.avatar,
         },
