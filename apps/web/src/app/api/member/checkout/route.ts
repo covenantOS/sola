@@ -4,6 +4,8 @@ import { getOrganizationByDomain, getSubdomainInfo } from "@/lib/subdomain"
 import { db } from "@/lib/db"
 import { createMembershipCheckout } from "@/lib/stripe"
 
+export const dynamic = "force-dynamic"
+
 const PLATFORM_FEE_PERCENT = parseInt(process.env.PLATFORM_FEE_PERCENT || "0", 10)
 
 export async function POST(request: NextRequest) {

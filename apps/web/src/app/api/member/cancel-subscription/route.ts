@@ -4,6 +4,8 @@ import { getOrganizationByDomain } from "@/lib/subdomain"
 import { db } from "@/lib/db"
 import { cancelSubscription } from "@/lib/stripe"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
     const member = await getCurrentMember()

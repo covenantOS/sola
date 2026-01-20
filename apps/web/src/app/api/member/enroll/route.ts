@@ -3,6 +3,8 @@ import { getCurrentMember } from "@/lib/member-auth"
 import { getOrganizationByDomain } from "@/lib/subdomain"
 import { db } from "@/lib/db"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest) {
   try {
     const member = await getCurrentMember()
