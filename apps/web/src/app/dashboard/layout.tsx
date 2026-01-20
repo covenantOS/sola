@@ -9,30 +9,8 @@ export const dynamic = "force-dynamic"
 import { UserButton } from "@/components/auth/user-button"
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard"
 import { GuidedTour } from "@/components/tour/guided-tour"
+import { SidebarNav } from "@/components/dashboard/sidebar-nav"
 import { syncUserFromLogto, getUserWithOrganization } from "@/lib/user-sync"
-import {
-  Home,
-  Users,
-  BookOpen,
-  Video,
-  CreditCard,
-  Settings,
-  BarChart3,
-  MessageSquare,
-  Crown,
-} from "lucide-react"
-
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Community", href: "/dashboard/community", icon: Users },
-  { name: "Members", href: "/dashboard/members", icon: Crown },
-  { name: "Courses", href: "/dashboard/courses", icon: BookOpen },
-  { name: "Livestreams", href: "/dashboard/livestreams", icon: Video },
-  { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
-]
 
 export default async function DashboardLayout({
   children,
@@ -114,25 +92,7 @@ export default async function DashboardLayout({
             </span>
           </Link>
         </div>
-        <nav className="flex flex-col gap-1 p-4" data-tour="sidebar-nav">
-          <style>{`
-            .nav-link:hover {
-              border-left-color: var(--brand-color) !important;
-            }
-          `}</style>
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="nav-link flex items-center gap-3 px-3 py-2.5 text-white/60 hover:text-white hover:bg-white/5 border-l-2 border-transparent transition-all duration-200"
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="font-display text-sm uppercase tracking-wide">
-                {item.name}
-              </span>
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav />
       </div>
 
       {/* Main content */}
