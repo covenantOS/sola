@@ -81,7 +81,6 @@ export default async function StreamViewerPage({ params }: PageProps) {
                 autoPlay={isLive}
                 muted={false}
                 className="w-full h-full"
-                style={{ aspectRatio: "16/9" } as React.CSSProperties}
                 accentColor="#D4A84B"
                 metadata={{
                   video_title: stream.title,
