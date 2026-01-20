@@ -2,6 +2,7 @@ import { getLogtoContext, signOut } from "@logto/next/server-actions"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { Suspense } from "react"
 import { logtoConfig } from "@/lib/logto"
 import { UserButton } from "@/components/auth/user-button"
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard"
@@ -117,7 +118,28 @@ export default async function DashboardLayout({
   }
 
   // Check if user has an organization
-  const { organization } = await getUserWithOrganization(claims?.sub as string || "")
+  let organization
+  try {
+    const result = await getUserWithOrganization(claims?.sub as string || "")
+    organization = result.organization
+  } catch (error) {
+    console.error("Organization lookup error:", error)
+    return (
+      <div className="min-h-screen bg-sola-black flex items-center justify-center p-8">
+        <div className="max-w-lg text-center">
+          <h1 className="font-display text-2xl text-sola-red uppercase tracking-wide mb-4">
+            Database Error
+          </h1>
+          <p className="text-white/60 mb-4">
+            Unable to load organization data. Please check database connection.
+          </p>
+          <a href="/" className="text-sola-gold hover:underline">
+            Return to Home
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   // If no organization, show full onboarding wizard
   if (!organization) {
@@ -199,8 +221,10 @@ export default async function DashboardLayout({
         <main className="p-6">{children}</main>
       </div>
 
-      {/* Guided Tour */}
-      <GuidedTour userId={dbUser.id} showTour={showTour} />
+      {/* Guided Tour - wrapped in Suspense for useSearchParams */}
+      <Suspense fallback={null}>
+        <GuidedTour userId={dbUser.id} showTour={showTour} />
+      </Suspense>
     </div>
   )
 }
